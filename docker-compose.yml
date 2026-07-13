@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: willpower-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: willpower
+      POSTGRES_PASSWORD: willpower
+      POSTGRES_DB: willpower
+    ports:
+      - "5432:5432"
+    volumes:
+      - willpower-db-data:/var/lib/postgresql/data
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+
+volumes:
+  willpower-db-data:
