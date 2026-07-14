@@ -15,6 +15,11 @@ export class CreateCourseDto {
   @IsString()
   description?: string;
 
+  @ApiPropertyOptional({ description: 'Freeform teaching topics/curriculum, one item per line.' })
+  @IsOptional()
+  @IsString()
+  syllabus?: string;
+
   @ApiPropertyOptional({ example: 'Foundations' })
   @IsOptional()
   @IsString()

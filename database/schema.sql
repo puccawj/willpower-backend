@@ -30,6 +30,8 @@ CREATE TYPE rsvp_status AS ENUM ('confirm', 'maybe', 'cancel');
 CREATE TYPE checkin_method AS ENUM ('self_qr', 'staff_qr', 'manual');
 CREATE TYPE donation_type AS ENUM ('money', 'goods');
 CREATE TYPE donation_status AS ENUM ('pending', 'received', 'verified', 'rejected');
+CREATE TYPE event_need_type AS ENUM ('money', 'goods');
+CREATE TYPE course_need_type AS ENUM ('money', 'goods');
 CREATE TYPE photo_status AS ENUM ('pending', 'approved', 'rejected');
 CREATE TYPE course_status AS ENUM ('active', 'inactive');
 CREATE TYPE offering_mode AS ENUM ('online', 'onsite');
@@ -192,6 +194,7 @@ CREATE TABLE courses (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   title varchar(200) NOT NULL,
   description text,
+  syllabus text, -- freeform teaching topics/curriculum, one item per line, shown on the public course detail page
   category varchar(100),
   image_url text,
   total_sessions integer NOT NULL,
@@ -292,6 +295,44 @@ CREATE TABLE event_photos (
 
 CREATE INDEX idx_event_photos_event_status ON event_photos (event_id, status);
 
+CREATE TABLE event_needs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id uuid NOT NULL REFERENCES events (id) ON DELETE CASCADE,
+  title varchar(200) NOT NULL,
+  type event_need_type NOT NULL,
+  unit varchar(30), -- e.g. 'bags', 'pieces'; unused for type='money'
+  target_quantity numeric(12,2) NOT NULL,
+  received_quantity numeric(12,2) NOT NULL DEFAULT 0, -- denormalized sum of verified donations against this need
+  created_by uuid REFERENCES users (id) ON DELETE SET NULL,
+  updated_by uuid REFERENCES users (id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz,
+  CONSTRAINT chk_event_needs_target_positive CHECK (target_quantity > 0)
+);
+
+CREATE INDEX idx_event_needs_event_id ON event_needs (event_id);
+
+CREATE TABLE course_needs (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id uuid NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  session_number integer, -- optional: which class session (1..courses.total_sessions) this need is for; null = whole course
+  title varchar(200) NOT NULL,
+  type course_need_type NOT NULL,
+  unit varchar(30), -- e.g. 'bags', 'pieces'; unused for type='money'
+  target_quantity numeric(12,2) NOT NULL,
+  received_quantity numeric(12,2) NOT NULL DEFAULT 0, -- denormalized sum of verified donations against this need
+  created_by uuid REFERENCES users (id) ON DELETE SET NULL,
+  updated_by uuid REFERENCES users (id) ON DELETE SET NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  deleted_at timestamptz,
+  CONSTRAINT chk_course_needs_target_positive CHECK (target_quantity > 0),
+  CONSTRAINT chk_course_needs_session_positive CHECK (session_number IS NULL OR session_number > 0)
+);
+
+CREATE INDEX idx_course_needs_course_id ON course_needs (course_id);
+
 -- ============================================================
 -- 10. donations
 -- ============================================================
@@ -299,6 +340,7 @@ CREATE INDEX idx_event_photos_event_status ON event_photos (event_id, status);
 CREATE TABLE donations (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   event_id uuid REFERENCES events (id) ON DELETE SET NULL,
+  course_id uuid REFERENCES courses (id) ON DELETE SET NULL,
   branch_id uuid NOT NULL REFERENCES branches (id) ON DELETE RESTRICT,
   user_id uuid REFERENCES users (id) ON DELETE SET NULL,
   donor_name varchar(150) NOT NULL, -- captured at donation time; walk-in donors may not have a user_id
@@ -312,6 +354,9 @@ CREATE TABLE donations (
   currency varchar(3) DEFAULT 'USD',
   item_description text,
   proof_image_url text,
+  need_id uuid REFERENCES event_needs (id) ON DELETE SET NULL, -- optional: which event wishlist item this targets
+  course_need_id uuid REFERENCES course_needs (id) ON DELETE SET NULL, -- optional: which course wishlist item this targets
+  quantity numeric(12,2), -- units donated toward a need's target when type='goods' and need_id/course_need_id is set
   status donation_status NOT NULL DEFAULT 'pending',
   is_anonymous boolean NOT NULL DEFAULT false,
   verified_by uuid REFERENCES users (id) ON DELETE SET NULL,
@@ -331,8 +376,11 @@ CREATE TABLE donations (
 );
 
 CREATE INDEX idx_donations_event_type ON donations (event_id, type);
+CREATE INDEX idx_donations_course_type ON donations (course_id, type);
 CREATE INDEX idx_donations_branch_status ON donations (branch_id, status);
 CREATE INDEX idx_donations_user_id ON donations (user_id);
+CREATE INDEX idx_donations_need_id ON donations (need_id);
+CREATE INDEX idx_donations_course_need_id ON donations (course_need_id);
 
 -- ============================================================
 -- 11. course_offerings

@@ -19,6 +19,10 @@ export class Course {
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
+  @ApiPropertyOptional({ nullable: true, description: 'Freeform teaching topics/curriculum, one item per line.' })
+  @Column({ type: 'text', nullable: true })
+  syllabus: string | null;
+
   @ApiPropertyOptional({ nullable: true })
   @Column({ type: 'varchar', length: 100, nullable: true })
   category: string | null;

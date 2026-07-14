@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import { CreateTemplateDto } from './dto/create-template.dto';
 import { UpdateTemplateDto } from './dto/update-template.dto';
-import { CertificateTemplate } from './entities/certificate-template.entity';
+import { CertificateTemplate, TemplateType } from './entities/certificate-template.entity';
 
 export interface TemplateWithBranch extends CertificateTemplate {
   branchName: string | null;
@@ -96,12 +96,15 @@ export class TemplatesService {
     }
   }
 
-  async findActiveCertificateTemplate(branchId: string | null): Promise<CertificateTemplate | null> {
+  async findActiveCertificateTemplate(
+    branchId: string | null,
+    type: TemplateType = 'certificate',
+  ): Promise<CertificateTemplate | null> {
     if (branchId) {
-      const scoped = await this.templates.findOne({ where: { type: 'certificate', branchId, isActive: true } });
+      const scoped = await this.templates.findOne({ where: { type, branchId, isActive: true } });
       if (scoped) return scoped;
     }
-    return this.templates.findOne({ where: { type: 'certificate', branchId: IsNull(), isActive: true } });
+    return this.templates.findOne({ where: { type, branchId: IsNull(), isActive: true } });
   }
 
   private async attachBranchNames(rows: CertificateTemplate[]): Promise<TemplateWithBranch[]> {

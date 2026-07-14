@@ -18,6 +18,10 @@ export class Donation {
   eventId: string | null;
 
   @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'course_id', type: 'uuid', nullable: true })
+  courseId: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
   @Column({ name: 'user_id', type: 'uuid', nullable: true })
   userId: string | null;
 
@@ -65,6 +69,18 @@ export class Donation {
   @Column({ name: 'proof_image_url', type: 'text', nullable: true })
   proofImageUrl: string | null;
 
+  @ApiPropertyOptional({ nullable: true, description: 'Which event wishlist item this donation targets, if any.' })
+  @Column({ name: 'need_id', type: 'uuid', nullable: true })
+  needId: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Which course wishlist item this donation targets, if any.' })
+  @Column({ name: 'course_need_id', type: 'uuid', nullable: true })
+  courseNeedId: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: "Units donated toward the need's target (type='goods' only)." })
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  quantity: string | null;
+
   @ApiProperty({ enum: STATUSES })
   @Column({ type: 'enum', enumName: 'donation_status', enum: STATUSES, default: 'pending' })
   status: DonationStatus;
@@ -84,6 +100,14 @@ export class Donation {
   @ApiPropertyOptional({ nullable: true })
   @Column({ name: 'certificate_no', type: 'varchar', length: 60, nullable: true })
   certificateNo: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'Which certificate template was used to render this donation certificate.' })
+  @Column({ name: 'certificate_template_id', type: 'uuid', nullable: true })
+  certificateTemplateId: string | null;
+
+  @ApiPropertyOptional({ nullable: true, description: 'URL of the generated certificate PDF.' })
+  @Column({ name: 'certificate_url', type: 'text', nullable: true })
+  certificateUrl: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @Column({ name: 'certificate_issued_at', type: 'timestamptz', nullable: true })

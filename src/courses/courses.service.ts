@@ -22,8 +22,13 @@ export interface PublicCourse {
   isOpenForEnrollment: boolean;
 }
 
+export interface PublicCourseDetail extends PublicCourse {
+  syllabus: string | null;
+}
+
 export interface PublicOffering {
   id: string;
+  branchId: string;
   branchName: string;
   mode: 'online' | 'onsite';
   location: string | null;
@@ -52,6 +57,7 @@ export class CoursesService {
     const course = this.courses.create({
       title: dto.title,
       description: dto.description ?? null,
+      syllabus: dto.syllabus ?? null,
       category: dto.category ?? null,
       imageUrl: dto.image ?? null,
       totalSessions: dto.totalSessions,
@@ -69,6 +75,7 @@ export class CoursesService {
 
     if (dto.title !== undefined) course.title = dto.title;
     if (dto.description !== undefined) course.description = dto.description ?? null;
+    if (dto.syllabus !== undefined) course.syllabus = dto.syllabus ?? null;
     if (dto.category !== undefined) course.category = dto.category ?? null;
     if (dto.image !== undefined) course.imageUrl = dto.image ?? null;
     if (dto.totalSessions !== undefined) course.totalSessions = dto.totalSessions;
@@ -142,6 +149,57 @@ export class CoursesService {
     }));
   }
 
+  async findOnePublic(id: string): Promise<PublicCourseDetail> {
+    const course = await this.courses.findOne({ where: { id, status: 'active' } });
+    if (!course) throw new NotFoundException('Course not found.');
+
+    const offeringRows = await this.courses.query(
+      `
+      SELECT
+        co.mode,
+        co.status,
+        co.end_date::text AS end_date,
+        co.capacity,
+        COALESCE(enrolled.count, 0) AS enrolled_count
+      FROM course_offerings co
+      LEFT JOIN (
+        SELECT offering_id, COUNT(*) AS count
+        FROM course_enrollments
+        WHERE status IN ('enrolled','completed')
+        GROUP BY offering_id
+      ) enrolled ON enrolled.offering_id = co.id
+      WHERE co.course_id = $1 AND co.deleted_at IS NULL
+      `,
+      [id],
+    );
+
+    const today = new Date().toISOString().slice(0, 10);
+    const modes = new Set<string>();
+    let isOpenForEnrollment = false;
+    for (const row of offeringRows) {
+      modes.add(row.mode);
+      const isOpen =
+        ['scheduled', 'ongoing'].includes(row.status) &&
+        row.end_date >= today &&
+        (row.capacity === null || Number(row.capacity) > Number(row.enrolled_count));
+      if (isOpen) isOpenForEnrollment = true;
+    }
+
+    return {
+      id: course.id,
+      title: course.title,
+      description: course.description,
+      syllabus: course.syllabus,
+      category: course.category,
+      imageUrl: course.imageUrl,
+      totalSessions: course.totalSessions,
+      passingAttendancePercent: Number(course.passingAttendancePercent),
+      offeringsCount: offeringRows.length,
+      modes: [...modes] as ('online' | 'onsite')[],
+      isOpenForEnrollment,
+    };
+  }
+
   async findPublicOfferings(courseId: string): Promise<PublicOffering[]> {
     const course = await this.courses.findOne({ where: { id: courseId, status: 'active' } });
     if (!course) throw new NotFoundException('Course not found.');
@@ -156,6 +214,7 @@ export class CoursesService {
         co.start_date::text AS start_date,
         co.end_date::text AS end_date,
         co.capacity,
+        co.branch_id,
         b.name AS branch_name,
         COALESCE(enrolled.count, 0) AS enrolled_count
       FROM course_offerings co
@@ -177,6 +236,7 @@ export class CoursesService {
       .filter((r: any) => r.capacity === null || Number(r.capacity) > Number(r.enrolled_count))
       .map((r: any) => ({
         id: r.id,
+        branchId: r.branch_id,
         branchName: r.branch_name,
         mode: r.mode,
         location: r.location,

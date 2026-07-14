@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthUser } from '../auth/jwt.strategy';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationDto } from './dto/update-donation.dto';
+import { IssueDonationCertificateDto } from './dto/issue-donation-certificate.dto';
 import { Donation } from './entities/donation.entity';
 import { DonationsService } from './donations.service';
 
@@ -57,11 +58,11 @@ export class DonationsController {
   }
 
   @Patch(':id/certificate')
-  @ApiOperation({ summary: 'Issue (or re-fetch) the anumodana certificate number for a verified donation.' })
+  @ApiOperation({ summary: 'Issue (or re-fetch) the anumodana certificate for a verified donation.' })
   @ApiOkResponse({ type: Donation })
   @ApiNotFoundResponse({ description: 'Donation not found.' })
-  issueCertificate(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
-    return this.donations.issueCertificate(id, actor.id);
+  issueCertificate(@Param('id') id: string, @Body() dto: IssueDonationCertificateDto, @CurrentUser() actor: AuthUser) {
+    return this.donations.issueCertificate(id, dto, actor.id);
   }
 
   @Delete(':id')

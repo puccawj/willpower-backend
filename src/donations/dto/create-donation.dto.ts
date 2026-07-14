@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsIn, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsIn, IsNumber, IsOptional, IsPositive, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import type { DonationType } from '../entities/donation.entity';
 
 const TYPES: DonationType[] = ['money', 'goods'];
@@ -49,8 +49,29 @@ export class CreateDonationDto {
   @IsUUID()
   eventId?: string;
 
+  @ApiPropertyOptional({ description: 'Related course UUID, if this donation was made for a specific course.' })
+  @IsOptional()
+  @IsUUID()
+  courseId?: string;
+
   @ApiPropertyOptional({ description: 'Proof of donation photo — URL or base64 data URI.' })
   @IsOptional()
   @IsString()
   proofImage?: string;
+
+  @ApiPropertyOptional({ description: 'Event wishlist item (need) UUID this donation targets, if any.' })
+  @IsOptional()
+  @IsUUID()
+  needId?: string;
+
+  @ApiPropertyOptional({ description: 'Course wishlist item (need) UUID this donation targets, if any.' })
+  @IsOptional()
+  @IsUUID()
+  courseNeedId?: string;
+
+  @ApiPropertyOptional({ description: "Units donated toward the need's target (type='goods' only)." })
+  @IsOptional()
+  @IsNumber()
+  @IsPositive()
+  quantity?: number;
 }

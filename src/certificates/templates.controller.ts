@@ -28,8 +28,8 @@ export class TemplatesController {
   @Get('active/lookup')
   @Roles('superadmin', 'admin')
   @ApiOperation({ summary: 'Find the active certificate template for a branch (falls back to the global template).' })
-  findActiveForBranch(@Query('branchId') branchId?: string) {
-    return this.templates.findActiveCertificateTemplate(branchId ?? null);
+  findActiveForBranch(@Query('branchId') branchId?: string, @Query('type') type?: 'certificate' | 'donation_money' | 'donation_goods') {
+    return this.templates.findActiveCertificateTemplate(branchId ?? null, type ?? 'certificate');
   }
 
   @Get(':id')

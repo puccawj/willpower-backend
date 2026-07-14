@@ -12,6 +12,7 @@ import { Certificate } from './certificates/entities/certificate.entity';
 import { CoursesModule } from './courses/courses.module';
 import { ClassAttendance } from './courses/entities/class-attendance.entity';
 import { CourseEnrollment } from './courses/entities/course-enrollment.entity';
+import { CourseNeed } from './courses/entities/course-need.entity';
 import { CourseOffering } from './courses/entities/course-offering.entity';
 import { CourseSession } from './courses/entities/course-session.entity';
 import { Course } from './courses/entities/course.entity';
@@ -20,6 +21,7 @@ import { Donation } from './donations/entities/donation.entity';
 import { EventsModule } from './events/events.module';
 import { Event } from './events/entities/event.entity';
 import { EventAttendance } from './events/entities/event-attendance.entity';
+import { EventNeed } from './events/entities/event-need.entity';
 import { EventRsvp } from './events/entities/event-rsvp.entity';
 import { EventWaitlist } from './events/entities/event-waitlist.entity';
 import { MeModule } from './me/me.module';
@@ -48,12 +50,14 @@ import { UsersModule } from './users/users.module';
           EventRsvp,
           EventWaitlist,
           EventAttendance,
+          EventNeed,
           Donation,
           TeamMember,
           Course,
           CourseOffering,
           CourseSession,
           CourseEnrollment,
+          CourseNeed,
           ClassAttendance,
           CertificateTemplate,
           Certificate,

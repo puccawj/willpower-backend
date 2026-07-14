@@ -102,6 +102,9 @@ export class AttendanceService {
   }
 
   private ensureRsvpOpen(event: Event): void {
+    if (new Date() > new Date(event.endAt)) {
+      throw new ConflictException('This event has already ended.');
+    }
     if (event.rsvpCutoffAt && new Date() > new Date(event.rsvpCutoffAt)) {
       throw new ConflictException('The RSVP cutoff for this event has passed.');
     }
