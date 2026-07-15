@@ -1,14 +1,18 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import type { AuthUser } from '../auth/jwt.strategy';
 import { UserBranch } from '../users/entities/user-branch.entity';
 import { EventNeedsService } from '../events/event-needs.service';
 import { CourseNeedsService } from '../courses/course-needs.service';
+import { CertificateNumberingService } from '../certificates/certificate-numbering.service';
 import { CreateDonationDto } from './dto/create-donation.dto';
 import { UpdateDonationDto } from './dto/update-donation.dto';
 import { IssueDonationCertificateDto } from './dto/issue-donation-certificate.dto';
 import { Donation } from './entities/donation.entity';
+import { DonationCertificate } from './entities/donation-certificate.entity';
+
+const NUMBER_PREFIX = 'WPI-DON';
 
 export interface DonationWithLabels extends Donation {
   branchName: string;
@@ -32,10 +36,16 @@ export interface PublicDonationRow {
 export class DonationsService {
   constructor(
     @InjectRepository(Donation) private readonly donations: Repository<Donation>,
+    @InjectRepository(DonationCertificate) private readonly donationCertificates: Repository<DonationCertificate>,
     @InjectRepository(UserBranch) private readonly userBranches: Repository<UserBranch>,
     private readonly eventNeeds: EventNeedsService,
     private readonly courseNeeds: CourseNeedsService,
+    private readonly numbering: CertificateNumberingService,
   ) {}
+
+  reserveNextCertificateNumber(): Promise<string> {
+    return this.numbering.reserveNext(NUMBER_PREFIX);
+  }
 
   async findAll(actor: AuthUser): Promise<DonationWithLabels[]> {
     const rows = await this.donations.find({ order: { createdAt: 'DESC' } });
@@ -151,22 +161,50 @@ export class DonationsService {
     if (donation.status !== 'verified') {
       throw new ConflictException('Donation must be verified before a certificate can be issued.');
     }
-    if (donation.certificateNo) return donation;
 
-    donation.certificateNo = dto.certificateNo;
-    donation.certificateTemplateId = dto.templateId;
-    donation.certificateUrl = dto.fileUrl;
-    donation.certificateIssuedAt = new Date();
-    donation.updatedBy = actorId;
+    const active = await this.donationCertificates.findOne({ where: { donationId: id, voidedAt: IsNull() } });
+    if (active) return donation;
+
+    const certificate = this.donationCertificates.create({
+      donationId: id,
+      templateId: dto.templateId,
+      certificateNo: dto.certificateNo,
+      issuedBy: actorId,
+      fileUrl: dto.fileUrl,
+    });
 
     try {
-      return await this.donations.save(donation);
+      await this.donationCertificates.save(certificate);
     } catch (err: any) {
       if (err?.code === '23505') {
         throw new ConflictException('This certificate number was already used — please try again.');
       }
       throw err;
     }
+
+    donation.certificateNo = dto.certificateNo;
+    donation.certificateTemplateId = dto.templateId;
+    donation.certificateUrl = dto.fileUrl;
+    donation.certificateIssuedAt = new Date();
+    donation.updatedBy = actorId;
+    return this.donations.save(donation);
+  }
+
+  async voidCertificate(id: string, actorId: string): Promise<Donation> {
+    const donation = await this.donations.findOne({ where: { id } });
+    if (!donation) throw new NotFoundException('Donation not found.');
+
+    await this.donationCertificates.update(
+      { donationId: id, voidedAt: IsNull() },
+      { voidedAt: new Date(), voidedBy: actorId },
+    );
+
+    donation.certificateNo = null;
+    donation.certificateTemplateId = null;
+    donation.certificateUrl = null;
+    donation.certificateIssuedAt = null;
+    donation.updatedBy = actorId;
+    return this.donations.save(donation);
   }
 
   private parseAmountOrItem(type: string, amountOrItem: string): Partial<Donation> {

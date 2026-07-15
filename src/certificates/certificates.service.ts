@@ -1,9 +1,10 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { CourseEnrollment } from '../courses/entities/course-enrollment.entity';
 import { CourseOffering } from '../courses/entities/course-offering.entity';
 import { Course } from '../courses/entities/course.entity';
+import { CertificateNumberingService } from './certificate-numbering.service';
 import { IssueCertificateDto } from './dto/issue-certificate.dto';
 import { Certificate } from './entities/certificate.entity';
 import { TemplatesService } from './templates.service';
@@ -13,6 +14,8 @@ export interface CertificateRow extends Certificate {
   studentEmail: string;
 }
 
+const NUMBER_PREFIX = 'WPI-CERT';
+
 @Injectable()
 export class CertificatesService {
   constructor(
@@ -21,17 +24,23 @@ export class CertificatesService {
     @InjectRepository(Course) private readonly courses: Repository<Course>,
     @InjectRepository(CourseEnrollment) private readonly enrollments: Repository<CourseEnrollment>,
     private readonly templatesService: TemplatesService,
+    private readonly numbering: CertificateNumberingService,
   ) {}
+
+  reserveNextNumber(): Promise<string> {
+    return this.numbering.reserveNext(NUMBER_PREFIX);
+  }
 
   async findAll(offeringId?: string): Promise<CertificateRow[]> {
     const rows: any[] = await this.certificates.query(
       offeringId
         ? `SELECT c.*, u.first_name, u.last_name, u.email
              FROM certificates c JOIN users u ON u.id = c.user_id
-            WHERE c.offering_id = $1
+            WHERE c.offering_id = $1 AND c.voided_at IS NULL
             ORDER BY c.issued_at DESC`
         : `SELECT c.*, u.first_name, u.last_name, u.email
              FROM certificates c JOIN users u ON u.id = c.user_id
+            WHERE c.voided_at IS NULL
             ORDER BY c.issued_at DESC`,
       offeringId ? [offeringId] : [],
     );
@@ -46,6 +55,8 @@ export class CertificatesService {
       issuedAt: r.issued_at,
       issuedBy: r.issued_by,
       fileUrl: r.file_url,
+      voidedAt: r.voided_at,
+      voidedBy: r.voided_by,
       createdAt: r.created_at,
       studentName: `${r.first_name} ${r.last_name}`,
       studentEmail: r.email,
@@ -59,7 +70,9 @@ export class CertificatesService {
     const enrollment = await this.enrollments.findOne({ where: { offeringId: dto.offeringId, userId: dto.userId } });
     if (!enrollment) throw new BadRequestException('This student is not enrolled in this offering.');
 
-    const existing = await this.certificates.findOne({ where: { offeringId: dto.offeringId, userId: dto.userId } });
+    const existing = await this.certificates.findOne({
+      where: { offeringId: dto.offeringId, userId: dto.userId, voidedAt: IsNull() },
+    });
     if (existing) throw new ConflictException('A certificate has already been issued for this student.');
 
     const course = await this.courses.findOne({ where: { id: offering.courseId } });
@@ -100,5 +113,15 @@ export class CertificatesService {
       }
       throw err;
     }
+  }
+
+  async voidCertificate(id: string, actorId: string): Promise<void> {
+    const certificate = await this.certificates.findOne({ where: { id } });
+    if (!certificate) throw new NotFoundException('Certificate not found.');
+    if (certificate.voidedAt) return;
+
+    certificate.voidedAt = new Date();
+    certificate.voidedBy = actorId;
+    await this.certificates.save(certificate);
   }
 }

@@ -1,8 +1,14 @@
-node_modules/
-dist/
+node_modules
+dist
 .env
+.env.*
+!.env.example
 *.log
 uploads/*
 !uploads/.gitkeep
 !uploads/branches/.gitkeep
+.git
+.vscode
+coverage
+test
 database/dump-*

@@ -1,19 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-@Entity({ name: 'certificates' })
-export class Certificate {
+@Entity({ name: 'donation_certificates' })
+export class DonationCertificate {
   @ApiProperty()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ApiPropertyOptional({ nullable: true })
-  @Column({ name: 'user_id', type: 'uuid', nullable: true })
-  userId: string | null;
-
-  @ApiPropertyOptional({ nullable: true })
-  @Column({ name: 'offering_id', type: 'uuid', nullable: true })
-  offeringId: string | null;
+  @ApiProperty()
+  @Column({ name: 'donation_id', type: 'uuid' })
+  donationId: string;
 
   @ApiProperty()
   @Column({ name: 'template_id', type: 'uuid' })
@@ -22,10 +18,6 @@ export class Certificate {
   @ApiProperty()
   @Column({ name: 'certificate_no', length: 60 })
   certificateNo: string;
-
-  @ApiProperty()
-  @Column({ name: 'attendance_percent', type: 'numeric', precision: 5, scale: 2 })
-  attendancePercent: string;
 
   @ApiProperty()
   @CreateDateColumn({ name: 'issued_at' })

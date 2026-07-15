@@ -3,6 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { EventsService } from './events.service';
 import { EventNeedsService } from './event-needs.service';
+import { EventPhotosService } from './event-photos.service';
 
 @ApiTags('public-events')
 @Public()
@@ -11,6 +12,7 @@ export class PublicEventsController {
   constructor(
     private readonly events: EventsService,
     private readonly needs: EventNeedsService,
+    private readonly photos: EventPhotosService,
   ) {}
 
   @Get()
@@ -29,5 +31,11 @@ export class PublicEventsController {
   @ApiOperation({ summary: "List an event's donation wishlist items for the public website." })
   findNeeds(@Param('id') id: string) {
     return this.needs.findAllForEvent(id);
+  }
+
+  @Get(':id/photos')
+  @ApiOperation({ summary: "List an event's atmosphere photos for the public website." })
+  findPhotos(@Param('id') id: string) {
+    return this.photos.findAllForEvent(id);
   }
 }

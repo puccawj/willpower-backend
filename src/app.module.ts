@@ -7,21 +7,25 @@ import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { BranchesModule } from './branches/branches.module';
 import { Branch } from './branches/entities/branch.entity';
 import { CertificatesModule } from './certificates/certificates.module';
+import { CertificateNumberCounter } from './certificates/entities/certificate-number-counter.entity';
 import { CertificateTemplate } from './certificates/entities/certificate-template.entity';
 import { Certificate } from './certificates/entities/certificate.entity';
 import { CoursesModule } from './courses/courses.module';
 import { ClassAttendance } from './courses/entities/class-attendance.entity';
 import { CourseEnrollment } from './courses/entities/course-enrollment.entity';
 import { CourseNeed } from './courses/entities/course-need.entity';
+import { CoursePhoto } from './courses/entities/course-photo.entity';
 import { CourseOffering } from './courses/entities/course-offering.entity';
 import { CourseSession } from './courses/entities/course-session.entity';
 import { Course } from './courses/entities/course.entity';
 import { DonationsModule } from './donations/donations.module';
 import { Donation } from './donations/entities/donation.entity';
+import { DonationCertificate } from './donations/entities/donation-certificate.entity';
 import { EventsModule } from './events/events.module';
 import { Event } from './events/entities/event.entity';
 import { EventAttendance } from './events/entities/event-attendance.entity';
 import { EventNeed } from './events/entities/event-need.entity';
+import { EventPhoto } from './events/entities/event-photo.entity';
 import { EventRsvp } from './events/entities/event-rsvp.entity';
 import { EventWaitlist } from './events/entities/event-waitlist.entity';
 import { MeModule } from './me/me.module';
@@ -51,16 +55,20 @@ import { UsersModule } from './users/users.module';
           EventWaitlist,
           EventAttendance,
           EventNeed,
+          EventPhoto,
           Donation,
+          DonationCertificate,
           TeamMember,
           Course,
           CourseOffering,
           CourseSession,
           CourseEnrollment,
           CourseNeed,
+          CoursePhoto,
           ClassAttendance,
           CertificateTemplate,
           Certificate,
+          CertificateNumberCounter,
         ],
         synchronize: false,
       }),

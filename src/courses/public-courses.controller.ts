@@ -3,6 +3,7 @@ import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../auth/decorators/public.decorator';
 import { CoursesService } from './courses.service';
 import { CourseNeedsService } from './course-needs.service';
+import { CoursePhotosService } from './course-photos.service';
 
 @ApiTags('public-courses')
 @Public()
@@ -11,6 +12,7 @@ export class PublicCoursesController {
   constructor(
     private readonly courses: CoursesService,
     private readonly needs: CourseNeedsService,
+    private readonly photos: CoursePhotosService,
   ) {}
 
   @Get()
@@ -35,5 +37,11 @@ export class PublicCoursesController {
   @ApiOperation({ summary: "List a course's donation wishlist items for the public website." })
   findNeeds(@Param('id') id: string) {
     return this.needs.findAllForCourse(id);
+  }
+
+  @Get(':id/photos')
+  @ApiOperation({ summary: "List a course's atmosphere photos for the public website." })
+  findPhotos(@Param('id') id: string) {
+    return this.photos.findAllForCourse(id);
   }
 }

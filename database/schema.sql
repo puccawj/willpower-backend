@@ -333,6 +333,20 @@ CREATE TABLE course_needs (
 
 CREATE INDEX idx_course_needs_course_id ON course_needs (course_id);
 
+CREATE TABLE course_photos (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  course_id uuid NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  user_id uuid REFERENCES users (id) ON DELETE SET NULL,
+  image_url text NOT NULL,
+  caption varchar(300),
+  status photo_status NOT NULL DEFAULT 'pending',
+  moderated_by uuid REFERENCES users (id) ON DELETE SET NULL,
+  moderated_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_course_photos_course_status ON course_photos (course_id, status);
+
 -- ============================================================
 -- 10. donations
 -- ============================================================

@@ -26,6 +26,12 @@ export class DonationsController {
     return this.donations.findAll(actor);
   }
 
+  @Get('next-certificate-number')
+  @ApiOperation({ summary: 'Reserve the next sequential anumodana certificate number.' })
+  async nextCertificateNumber() {
+    return { certificateNo: await this.donations.reserveNextCertificateNumber() };
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single donation by id.' })
   @ApiOkResponse({ type: Donation })
@@ -63,6 +69,14 @@ export class DonationsController {
   @ApiNotFoundResponse({ description: 'Donation not found.' })
   issueCertificate(@Param('id') id: string, @Body() dto: IssueDonationCertificateDto, @CurrentUser() actor: AuthUser) {
     return this.donations.issueCertificate(id, dto, actor.id);
+  }
+
+  @Delete(':id/certificate')
+  @ApiOperation({ summary: 'Void an issued anumodana certificate so it can be re-issued.' })
+  @ApiOkResponse({ type: Donation })
+  @ApiNotFoundResponse({ description: 'Donation not found.' })
+  voidCertificate(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    return this.donations.voidCertificate(id, actor.id);
   }
 
   @Delete(':id')
