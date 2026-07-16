@@ -1,44 +1,23 @@
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: willpower-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: willpower
-      POSTGRES_PASSWORD: willpower
-      POSTGRES_DB: willpower
-    ports:
-      - "5432:5432"
-    volumes:
-      - willpower-db-data:/var/lib/postgresql/data
-      - ./database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U willpower -d willpower"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
   api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: willpower-api
+    build: .
+    container_name: nestjs_api
     restart: unless-stopped
+    # 💡 เพิ่ม 2 บรรทัดนี้เข้าไปเพื่อให้คนภายนอกเข้าผ่านพอร์ต 3000 ได้
+    ports:
+      - "3000:3000"
     env_file:
       - .env
     environment:
-      # Overrides the .env value so the container reaches Postgres via the
-      # compose network hostname instead of localhost (which inside this
-      # container would mean "this container", not the db service).
-      DATABASE_URL: postgres://willpower:willpower@db:5432/willpower
-      PORT: 3000
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./uploads:/app/uploads
-    depends_on:
-      db:
-        condition: service_healthy
+      PORT: ${PORT}
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
+      DATABASE_NAME: ${DATABASE_NAME}
+    networks:
+      - app_network
 
-volumes:
-  willpower-db-data:
+networks:
+  app_network:
+    external: true
