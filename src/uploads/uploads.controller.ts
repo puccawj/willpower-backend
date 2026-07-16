@@ -41,7 +41,10 @@ export class UploadsController {
   )
   upload(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
     if (!file) throw new BadRequestException('No file uploaded.');
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    // PUBLIC_URL should be set in production — trusting the incoming request's host/protocol
+    // breaks behind a reverse proxy (wrong scheme) and bakes in whatever host the uploader
+    // happened to hit the API through (e.g. localhost during local testing).
+    const baseUrl = process.env.PUBLIC_URL ?? `${req.protocol}://${req.get('host')}`;
     return { url: `${baseUrl}/uploads/branches/${file.filename}` };
   }
 }

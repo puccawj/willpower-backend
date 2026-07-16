@@ -20,6 +20,9 @@ function isAllowedOrigin(origin: string): boolean {
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Behind a reverse proxy (nginx/Caddy terminating TLS), trust its X-Forwarded-* headers
+  // so req.protocol reports "https" instead of the plain-HTTP hop to this process.
+  app.set('trust proxy', 1);
   app.enableCors({
     origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
     credentials: true,
