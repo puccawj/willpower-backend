@@ -14,6 +14,7 @@ function isAllowedOrigin(origin: string): boolean {
   return (
     /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin) ||
     /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
+    /^https:\/\/([a-z0-9-]+\.)?wpusa\.online$/.test(origin) ||
     extraOrigins.includes(origin)
   );
 }
