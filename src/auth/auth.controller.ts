@@ -18,7 +18,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Log in with email and password, returns a JWT access token.' })
   @ApiUnauthorizedResponse({ description: 'Invalid email or password.' })
   login(@Body() dto: LoginDto) {
-    return this.auth.login(dto.email, dto.password);
+    return this.auth.login(dto.email, dto.password, dto.rememberMe, dto.turnstileToken);
   }
 
   @Public()

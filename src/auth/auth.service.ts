@@ -1,6 +1,6 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
@@ -10,6 +10,7 @@ import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 
 const SALT_ROUNDS = 10;
+const REMEMBER_ME_EXPIRES_IN = '30d';
 
 export interface AuthResult {
   accessToken: string;
@@ -28,7 +29,9 @@ export class AuthService {
     this.googleClient = new OAuth2Client(this.config.get<string>('GOOGLE_CLIENT_ID'));
   }
 
-  async login(email: string, password: string): Promise<AuthResult> {
+  async login(email: string, password: string, rememberMe?: boolean, turnstileToken?: string): Promise<AuthResult> {
+    await this.verifyTurnstile(turnstileToken);
+
     const user = await this.users.findOne({ where: { email: email.toLowerCase().trim() } });
 
     if (!user || user.status !== 'active') {
@@ -40,7 +43,24 @@ export class AuthService {
       throw new UnauthorizedException('Invalid email or password.');
     }
 
-    return this.issueToken(user);
+    return this.issueToken(user, rememberMe ? REMEMBER_ME_EXPIRES_IN : undefined);
+  }
+
+  /** No-ops when TURNSTILE_SECRET_KEY isn't configured, so local dev works without a Cloudflare account. */
+  private async verifyTurnstile(token?: string): Promise<void> {
+    const secret = this.config.get<string>('TURNSTILE_SECRET_KEY');
+    if (!secret) return;
+
+    if (!token) throw new BadRequestException('Please complete the verification challenge.');
+
+    const params = new URLSearchParams({ secret, response: token });
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params,
+    });
+    const result = (await res.json()) as { success: boolean };
+    if (!result.success) throw new BadRequestException('Verification failed — please try again.');
   }
 
   async register(dto: RegisterDto): Promise<AuthResult> {
@@ -131,8 +151,11 @@ export class AuthService {
     return this.issueToken(user);
   }
 
-  private async issueToken(user: User): Promise<AuthResult> {
-    const accessToken = await this.jwt.signAsync({ sub: user.id, email: user.email, role: user.role });
+  private async issueToken(user: User, expiresIn?: JwtSignOptions['expiresIn']): Promise<AuthResult> {
+    const accessToken = await this.jwt.signAsync(
+      { sub: user.id, email: user.email, role: user.role },
+      expiresIn ? { expiresIn } : undefined,
+    );
     return {
       accessToken,
       user: {
