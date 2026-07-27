@@ -21,6 +21,12 @@ export class PublicCoursesController {
     return this.courses.findAllPublic();
   }
 
+  @Get('offerings')
+  @ApiOperation({ summary: 'List every open offering across all active courses, for offering-level browsing (Home, Courses list).' })
+  findAllOfferings() {
+    return this.courses.findAllPublicOfferings();
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get a single active course, including its syllabus, for the public website.' })
   findOne(@Param('id') id: string) {

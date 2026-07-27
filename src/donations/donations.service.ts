@@ -19,6 +19,7 @@ export interface DonationWithLabels extends Donation {
   eventTitle: string | null;
   courseTitle: string | null;
   sessionNumber: number | null;
+  offeringLabel: string | null;
 }
 
 export interface PublicDonationRow {
@@ -29,6 +30,8 @@ export interface PublicDonationRow {
   itemDescription: string | null;
   quantity: string | null;
   needTitle: string | null;
+  offeringId: string | null;
+  offeringLabel: string | null;
   createdAt: Date;
 }
 
@@ -92,6 +95,7 @@ export class DonationsService {
       proofImageUrl: dto.proofImage ?? null,
       needId: dto.needId ?? null,
       courseNeedId: dto.courseNeedId ?? null,
+      offeringId: dto.offeringId ?? null,
       quantity: dto.quantity != null ? dto.quantity.toFixed(2) : null,
       createdBy: actorId,
       updatedBy: actorId,
@@ -242,9 +246,13 @@ export class DonationsService {
   async publicListForCourse(courseId: string): Promise<PublicDonationRow[]> {
     const rows = await this.donations.query(
       `SELECT d.id, d.is_anonymous, d.donor_name, d.type, d.amount, d.item_description, d.quantity,
-              d.created_at, n.title AS need_title
+              d.created_at, n.title AS need_title,
+              COALESCE(d.offering_id, n.offering_id) AS resolved_offering_id,
+              CASE WHEN ro.id IS NOT NULL THEN rb.name || ' · ' || to_char(ro.start_date, 'Mon YYYY') END AS offering_label
          FROM donations d
          LEFT JOIN course_needs n ON n.id = d.course_need_id
+         LEFT JOIN course_offerings ro ON ro.id = COALESCE(d.offering_id, n.offering_id)
+         LEFT JOIN branches rb ON rb.id = ro.branch_id
         WHERE d.course_id = $1 AND d.status = 'verified' AND d.deleted_at IS NULL
         ORDER BY d.created_at DESC`,
       [courseId],
@@ -258,6 +266,8 @@ export class DonationsService {
       itemDescription: r.item_description,
       quantity: r.quantity,
       needTitle: r.need_title,
+      offeringId: r.resolved_offering_id,
+      offeringLabel: r.offering_label,
       createdAt: r.created_at,
     }));
   }
@@ -285,7 +295,7 @@ export class DonationsService {
       ? await this.donations.query(`SELECT id, title FROM courses WHERE id = ANY($1)`, [courseIds])
       : [];
     const courseNeedRows = courseNeedIds.length
-      ? await this.donations.query(`SELECT id, session_number FROM course_needs WHERE id = ANY($1)`, [courseNeedIds])
+      ? await this.donations.query(`SELECT id, session_number, offering_id FROM course_needs WHERE id = ANY($1)`, [courseNeedIds])
       : [];
 
     const branchNameById = new Map<string, string>(branchRows.map((b: any) => [b.id, b.name]));
@@ -294,6 +304,24 @@ export class DonationsService {
     const sessionNumberByNeedId = new Map<string, number | null>(
       courseNeedRows.map((n: any) => [n.id, n.session_number === null ? null : Number(n.session_number)]),
     );
+    const offeringIdByNeedId = new Map<string, string | null>(courseNeedRows.map((n: any) => [n.id, n.offering_id ?? null]));
+
+    const resolvedOfferingIdByRowId = new Map<string, string | null>();
+    for (const row of rows) {
+      const resolved = row.offeringId ?? (row.courseNeedId ? offeringIdByNeedId.get(row.courseNeedId) ?? null : null);
+      resolvedOfferingIdByRowId.set(row.id, resolved);
+    }
+    const offeringIds = [...new Set([...resolvedOfferingIdByRowId.values()].filter((id): id is string => !!id))];
+    const offeringRows = offeringIds.length
+      ? await this.donations.query(
+          `SELECT co.id, b.name || ' · ' || to_char(co.start_date, 'Mon YYYY') AS label
+             FROM course_offerings co
+             JOIN branches b ON b.id = co.branch_id
+            WHERE co.id = ANY($1)`,
+          [offeringIds],
+        )
+      : [];
+    const offeringLabelById = new Map<string, string>(offeringRows.map((o: any) => [o.id, o.label]));
 
     return rows.map((row) => ({
       ...row,
@@ -301,6 +329,10 @@ export class DonationsService {
       eventTitle: row.eventId ? eventTitleById.get(row.eventId) ?? '—' : null,
       courseTitle: row.courseId ? courseTitleById.get(row.courseId) ?? '—' : null,
       sessionNumber: row.courseNeedId ? sessionNumberByNeedId.get(row.courseNeedId) ?? null : null,
+      offeringLabel: (() => {
+        const resolved = resolvedOfferingIdByRowId.get(row.id);
+        return resolved ? offeringLabelById.get(resolved) ?? null : null;
+      })(),
     }));
   }
 }

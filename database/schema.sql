@@ -317,6 +317,7 @@ CREATE TABLE course_needs (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   course_id uuid NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
   session_number integer, -- optional: which class session (1..courses.total_sessions) this need is for; null = whole course
+  offering_id uuid, -- optional: which specific offering (branch/run) this need is for; null = whole course. FK added below course_offerings.
   title varchar(200) NOT NULL,
   type course_need_type NOT NULL,
   unit varchar(30), -- e.g. 'bags', 'pieces'; unused for type='money'
@@ -332,6 +333,7 @@ CREATE TABLE course_needs (
 );
 
 CREATE INDEX idx_course_needs_course_id ON course_needs (course_id);
+CREATE INDEX idx_course_needs_offering_id ON course_needs (offering_id);
 
 CREATE TABLE course_photos (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -370,6 +372,7 @@ CREATE TABLE donations (
   proof_image_url text,
   need_id uuid REFERENCES event_needs (id) ON DELETE SET NULL, -- optional: which event wishlist item this targets
   course_need_id uuid REFERENCES course_needs (id) ON DELETE SET NULL, -- optional: which course wishlist item this targets
+  offering_id uuid, -- optional: which specific course offering this general (non-need-targeted) donation is for. FK added below course_offerings.
   quantity numeric(12,2), -- units donated toward a need's target when type='goods' and need_id/course_need_id is set
   status donation_status NOT NULL DEFAULT 'pending',
   is_anonymous boolean NOT NULL DEFAULT false,
@@ -395,6 +398,7 @@ CREATE INDEX idx_donations_branch_status ON donations (branch_id, status);
 CREATE INDEX idx_donations_user_id ON donations (user_id);
 CREATE INDEX idx_donations_need_id ON donations (need_id);
 CREATE INDEX idx_donations_course_need_id ON donations (course_need_id);
+CREATE INDEX idx_donations_offering_id ON donations (offering_id);
 
 -- ============================================================
 -- 11. course_offerings
@@ -423,6 +427,12 @@ CREATE TABLE course_offerings (
 CREATE INDEX idx_offerings_branch_status ON course_offerings (branch_id, status);
 CREATE INDEX idx_offerings_course_id ON course_offerings (course_id);
 CREATE INDEX idx_offerings_instructor_id ON course_offerings (instructor_id);
+
+ALTER TABLE course_needs
+  ADD CONSTRAINT fk_course_needs_offering FOREIGN KEY (offering_id) REFERENCES course_offerings (id) ON DELETE SET NULL;
+
+ALTER TABLE donations
+  ADD CONSTRAINT fk_donations_offering FOREIGN KEY (offering_id) REFERENCES course_offerings (id) ON DELETE SET NULL;
 
 -- ============================================================
 -- 12. course_sessions

@@ -15,7 +15,10 @@ export class CourseNeedsService {
 
   async findAllForCourse(courseId: string): Promise<CourseNeed[]> {
     await this.getCourseOrThrow(courseId);
-    return this.needs.find({ where: { courseId }, order: { sessionNumber: 'ASC', createdAt: 'ASC' } });
+    return this.needs.find({
+      where: { courseId },
+      order: { offeringId: { direction: 'ASC', nulls: 'FIRST' }, sessionNumber: 'ASC', createdAt: 'ASC' },
+    });
   }
 
   async create(courseId: string, dto: CreateCourseNeedDto, actorId: string): Promise<CourseNeed> {
@@ -23,6 +26,7 @@ export class CourseNeedsService {
     const need = this.needs.create({
       courseId,
       sessionNumber: dto.sessionNumber ?? null,
+      offeringId: dto.offeringId ?? null,
       title: dto.title,
       type: dto.type,
       unit: dto.unit ?? null,
@@ -38,6 +42,7 @@ export class CourseNeedsService {
 
     if (dto.title !== undefined) need.title = dto.title;
     if (dto.sessionNumber !== undefined) need.sessionNumber = dto.sessionNumber ?? null;
+    if (dto.offeringId !== undefined) need.offeringId = dto.offeringId ?? null;
     if (dto.type !== undefined) need.type = dto.type;
     if (dto.unit !== undefined) need.unit = dto.unit ?? null;
     if (dto.targetQuantity !== undefined) need.targetQuantity = dto.targetQuantity.toFixed(2);

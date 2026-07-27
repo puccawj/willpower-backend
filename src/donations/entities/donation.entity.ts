@@ -77,6 +77,10 @@ export class Donation {
   @Column({ name: 'course_need_id', type: 'uuid', nullable: true })
   courseNeedId: string | null;
 
+  @ApiPropertyOptional({ nullable: true, description: 'Which course offering this general (non-need-targeted) donation is for, if any.' })
+  @Column({ name: 'offering_id', type: 'uuid', nullable: true })
+  offeringId: string | null;
+
   @ApiPropertyOptional({ nullable: true, description: "Units donated toward the need's target (type='goods' only)." })
   @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
   quantity: string | null;

@@ -19,6 +19,10 @@ export class CourseNeed {
   @Column({ name: 'session_number', type: 'int', nullable: true })
   sessionNumber: number | null;
 
+  @ApiPropertyOptional({ nullable: true, description: 'Which specific offering (branch/run) this need is for; null = the whole course.' })
+  @Column({ name: 'offering_id', type: 'uuid', nullable: true })
+  offeringId: string | null;
+
   @ApiProperty()
   @Column({ length: 200 })
   title: string;

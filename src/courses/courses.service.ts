@@ -26,6 +26,12 @@ export interface PublicCourseDetail extends PublicCourse {
   syllabus: string | null;
 }
 
+export interface PublicOfferingScheduleSlot {
+  dow: number;
+  startTime: string;
+  endTime: string;
+}
+
 export interface PublicOffering {
   id: string;
   branchId: string;
@@ -35,6 +41,22 @@ export interface PublicOffering {
   startDate: string;
   endDate: string;
   spotsLeft: number | null;
+  scheduleSummary: PublicOfferingScheduleSlot[];
+}
+
+export interface PublicCourseOfferingCard {
+  courseId: string;
+  offeringId: string;
+  title: string;
+  category: string | null;
+  imageUrl: string | null;
+  branchId: string;
+  branchName: string;
+  mode: 'online' | 'onsite';
+  startDate: string;
+  endDate: string;
+  spotsLeft: number | null;
+  scheduleSummary: PublicOfferingScheduleSlot[];
 }
 
 @Injectable()
@@ -216,7 +238,8 @@ export class CoursesService {
         co.capacity,
         co.branch_id,
         b.name AS branch_name,
-        COALESCE(enrolled.count, 0) AS enrolled_count
+        COALESCE(enrolled.count, 0) AS enrolled_count,
+        COALESCE(sched.schedule, '[]') AS schedule
       FROM course_offerings co
       JOIN branches b ON b.id = co.branch_id
       LEFT JOIN (
@@ -225,6 +248,16 @@ export class CoursesService {
         WHERE status IN ('enrolled','completed')
         GROUP BY offering_id
       ) enrolled ON enrolled.offering_id = co.id
+      LEFT JOIN (
+        SELECT offering_id,
+               json_agg(DISTINCT jsonb_build_object(
+                 'dow', extract(dow from session_date)::int,
+                 'startTime', start_time::text,
+                 'endTime', end_time::text
+               )) AS schedule
+        FROM course_sessions
+        GROUP BY offering_id
+      ) sched ON sched.offering_id = co.id
       WHERE co.course_id = $1 AND co.deleted_at IS NULL
         AND co.status IN ('scheduled','ongoing') AND co.end_date >= $2
       ORDER BY co.start_date ASC
@@ -243,6 +276,70 @@ export class CoursesService {
         startDate: r.start_date,
         endDate: r.end_date,
         spotsLeft: r.capacity === null ? null : Number(r.capacity) - Number(r.enrolled_count),
+        scheduleSummary: typeof r.schedule === 'string' ? JSON.parse(r.schedule) : r.schedule,
+      }));
+  }
+
+  /** One row per open offering across all active courses, each carrying its parent course's display fields. */
+  async findAllPublicOfferings(): Promise<PublicCourseOfferingCard[]> {
+    const today = new Date().toISOString().slice(0, 10);
+    const rows = await this.courses.query(
+      `
+      SELECT
+        c.id AS course_id,
+        c.title,
+        c.category,
+        c.image_url,
+        co.id AS offering_id,
+        co.mode,
+        co.start_date::text AS start_date,
+        co.end_date::text AS end_date,
+        co.capacity,
+        co.branch_id,
+        b.name AS branch_name,
+        COALESCE(enrolled.count, 0) AS enrolled_count,
+        COALESCE(sched.schedule, '[]') AS schedule
+      FROM course_offerings co
+      JOIN courses c ON c.id = co.course_id AND c.status = 'active'
+      JOIN branches b ON b.id = co.branch_id
+      LEFT JOIN (
+        SELECT offering_id, COUNT(*) AS count
+        FROM course_enrollments
+        WHERE status IN ('enrolled','completed')
+        GROUP BY offering_id
+      ) enrolled ON enrolled.offering_id = co.id
+      LEFT JOIN (
+        SELECT offering_id,
+               json_agg(DISTINCT jsonb_build_object(
+                 'dow', extract(dow from session_date)::int,
+                 'startTime', start_time::text,
+                 'endTime', end_time::text
+               )) AS schedule
+        FROM course_sessions
+        GROUP BY offering_id
+      ) sched ON sched.offering_id = co.id
+      WHERE co.deleted_at IS NULL
+        AND co.status IN ('scheduled','ongoing') AND co.end_date >= $1
+      ORDER BY co.start_date ASC
+      `,
+      [today],
+    );
+
+    return rows
+      .filter((r: any) => r.capacity === null || Number(r.capacity) > Number(r.enrolled_count))
+      .map((r: any) => ({
+        courseId: r.course_id,
+        offeringId: r.offering_id,
+        title: r.title,
+        category: r.category,
+        imageUrl: r.image_url,
+        branchId: r.branch_id,
+        branchName: r.branch_name,
+        mode: r.mode,
+        startDate: r.start_date,
+        endDate: r.end_date,
+        spotsLeft: r.capacity === null ? null : Number(r.capacity) - Number(r.enrolled_count),
+        scheduleSummary: typeof r.schedule === 'string' ? JSON.parse(r.schedule) : r.schedule,
       }));
   }
 

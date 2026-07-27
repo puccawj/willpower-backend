@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsNumber, IsOptional, IsPositive, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsIn, IsInt, IsNumber, IsOptional, IsPositive, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import type { CourseNeedType } from '../entities/course-need.entity';
 
 const TYPES: CourseNeedType[] = ['money', 'goods'];
@@ -16,6 +16,11 @@ export class CreateCourseNeedDto {
   @IsInt()
   @IsPositive()
   sessionNumber?: number;
+
+  @ApiPropertyOptional({ description: 'Which specific offering (branch/run) this need is for. Omit for the whole course.' })
+  @IsOptional()
+  @IsUUID()
+  offeringId?: string;
 
   @ApiProperty({ enum: TYPES })
   @IsIn(TYPES)

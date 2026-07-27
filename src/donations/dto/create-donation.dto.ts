@@ -69,6 +69,11 @@ export class CreateDonationDto {
   @IsUUID()
   courseNeedId?: string;
 
+  @ApiPropertyOptional({ description: 'Course offering UUID this general (non-need-targeted) donation is for, if any.' })
+  @IsOptional()
+  @IsUUID()
+  offeringId?: string;
+
   @ApiPropertyOptional({ description: "Units donated toward the need's target (type='goods' only)." })
   @IsOptional()
   @IsNumber()
