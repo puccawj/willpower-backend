@@ -2,6 +2,8 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as QRCode from 'qrcode';
+import type { AuthUser } from '../auth/jwt.strategy';
+import { BranchAccessService } from '../common/branch-access.service';
 import { ClassAttendance } from './entities/class-attendance.entity';
 import { CourseEnrollment } from './entities/course-enrollment.entity';
 import { CourseOffering } from './entities/course-offering.entity';
@@ -38,10 +40,11 @@ export class EnrollmentService {
     @InjectRepository(CourseSession) private readonly sessions: Repository<CourseSession>,
     @InjectRepository(CourseEnrollment) private readonly enrollments: Repository<CourseEnrollment>,
     @InjectRepository(ClassAttendance) private readonly attendance: Repository<ClassAttendance>,
+    private readonly branchAccess: BranchAccessService,
   ) {}
 
-  async listEnrollments(offeringId: string, sessionId?: string): Promise<EnrollmentRow[]> {
-    const offering = await this.getOfferingOrThrow(offeringId);
+  async listEnrollments(offeringId: string, sessionId?: string, actor?: AuthUser): Promise<EnrollmentRow[]> {
+    const offering = await this.getOfferingOrThrow(offeringId, actor);
     const course = await this.courses.findOne({ where: { id: offering.courseId } });
     const totalSessions = course?.totalSessions ?? 0;
 
@@ -71,8 +74,8 @@ export class EnrollmentService {
     }));
   }
 
-  async enroll(offeringId: string, dto: EnrollDto): Promise<CourseEnrollment> {
-    await this.getOfferingOrThrow(offeringId);
+  async enroll(offeringId: string, dto: EnrollDto, actor?: AuthUser): Promise<CourseEnrollment> {
+    await this.getOfferingOrThrow(offeringId, actor);
 
     const existing = await this.enrollments.findOne({ where: { offeringId, userId: dto.userId } });
     if (existing) throw new ConflictException('This user is already enrolled in this offering.');
@@ -81,15 +84,17 @@ export class EnrollmentService {
     return this.enrollments.save(enrollment);
   }
 
-  async removeEnrollment(offeringId: string, userId: string): Promise<void> {
+  async removeEnrollment(offeringId: string, userId: string, actor?: AuthUser): Promise<void> {
+    await this.getOfferingOrThrow(offeringId, actor);
     const enrollment = await this.enrollments.findOne({ where: { offeringId, userId } });
     if (!enrollment) throw new NotFoundException('Enrollment not found.');
     await this.enrollments.delete({ offeringId, userId });
   }
 
-  async toggleAttendance(sessionId: string, userId: string, actorId: string): Promise<{ checkedIn: boolean }> {
+  async toggleAttendance(sessionId: string, userId: string, actorId: string, actor?: AuthUser): Promise<{ checkedIn: boolean }> {
     const session = await this.sessions.findOne({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Session not found.');
+    if (actor) await this.getOfferingOrThrow(session.offeringId, actor);
 
     const enrolled = await this.enrollments.findOne({ where: { offeringId: session.offeringId, userId } });
     if (!enrolled) throw new NotFoundException('This user is not enrolled in this offering.');
@@ -123,9 +128,10 @@ export class EnrollmentService {
     return rows;
   }
 
-  async getSessionCheckinQr(sessionId: string): Promise<{ code: string; qrDataUrl: string }> {
+  async getSessionCheckinQr(sessionId: string, actor?: AuthUser): Promise<{ code: string; qrDataUrl: string }> {
     const session = await this.sessions.findOne({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Session not found.');
+    if (actor) await this.getOfferingOrThrow(session.offeringId, actor);
 
     const qrDataUrl = await QRCode.toDataURL(sessionId, { margin: 1, width: 320 });
     return { code: sessionId, qrDataUrl };
@@ -149,9 +155,10 @@ export class EnrollmentService {
     return { title: `Session ${session.sessionNo}`, alreadyCheckedIn: false };
   }
 
-  private async getOfferingOrThrow(offeringId: string): Promise<CourseOffering> {
+  private async getOfferingOrThrow(offeringId: string, actor?: AuthUser): Promise<CourseOffering> {
     const offering = await this.offerings.findOne({ where: { id: offeringId } });
     if (!offering) throw new NotFoundException('Offering not found.');
+    if (actor) await this.branchAccess.assertCanAccess(actor, offering.branchId, 'Offering not found.');
     return offering;
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserBranch } from '../users/entities/user-branch.entity';
+import { BranchAccessModule } from '../common/branch-access.module';
 import { ClassAttendance } from './entities/class-attendance.entity';
 import { CourseEnrollment } from './entities/course-enrollment.entity';
 import { CourseNeed } from './entities/course-need.entity';
@@ -32,6 +33,7 @@ import { PublicCoursesController } from './public-courses.controller';
       CoursePhoto,
       UserBranch,
     ]),
+    BranchAccessModule,
   ],
   controllers: [
     CoursesController,

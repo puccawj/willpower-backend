@@ -10,6 +10,10 @@ import { AttendanceService } from '../events/attendance.service';
 import { EnrollmentService } from '../courses/enrollment.service';
 import { DonationsService } from '../donations/donations.service';
 import { CreateDonationDto } from '../donations/dto/create-donation.dto';
+import { NotificationsService } from '../notifications/notifications.service';
+import { DevicesService } from '../notifications/devices.service';
+import { Notification } from '../notifications/entities/notification.entity';
+import { RegisterDeviceDto } from '../notifications/dto/register-device.dto';
 import { MyRsvpStatus } from './dto/set-my-rsvp.dto';
 
 export interface MyProfile {
@@ -78,7 +82,37 @@ export class MeService {
     private readonly attendance: AttendanceService,
     private readonly enrollment: EnrollmentService,
     private readonly donationsService: DonationsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly devicesService: DevicesService,
   ) {}
+
+  registerDevice(userId: string, dto: RegisterDeviceDto): Promise<void> {
+    return this.devicesService.register(userId, dto);
+  }
+
+  unregisterDevice(userId: string, pushToken: string): Promise<void> {
+    return this.devicesService.unregister(userId, pushToken);
+  }
+
+  myNotifications(userId: string): Promise<Notification[]> {
+    return this.notificationsService.findAllForUser(userId);
+  }
+
+  myUnreadNotificationCount(userId: string): Promise<number> {
+    return this.notificationsService.unreadCount(userId);
+  }
+
+  markNotificationRead(userId: string, id: string): Promise<void> {
+    return this.notificationsService.markRead(id, userId);
+  }
+
+  markAllNotificationsRead(userId: string): Promise<void> {
+    return this.notificationsService.markAllRead(userId);
+  }
+
+  deleteNotification(userId: string, id: string): Promise<void> {
+    return this.notificationsService.delete(id, userId);
+  }
 
   async profile(userId: string): Promise<MyProfile> {
     const user = await this.users.findOneOrFail({ where: { id: userId } });

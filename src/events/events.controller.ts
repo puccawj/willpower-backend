@@ -21,23 +21,23 @@ export class EventsController {
   @Get()
   @ApiOperation({ summary: 'List all active (non-deleted) events with computed RSVP/waitlist counts.' })
   @ApiOkResponse({ type: Event, isArray: true })
-  findAll() {
-    return this.events.findAll();
+  findAll(@CurrentUser() actor: AuthUser) {
+    return this.events.findAll(actor);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single event by id.' })
   @ApiOkResponse({ type: Event })
   @ApiNotFoundResponse({ description: 'Event not found.' })
-  findOne(@Param('id') id: string) {
-    return this.events.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    return this.events.findOne(id, actor);
   }
 
   @Post()
   @ApiOperation({ summary: 'Create a new event.' })
   @ApiOkResponse({ type: Event })
   create(@Body() dto: CreateEventDto, @CurrentUser() actor: AuthUser) {
-    return this.events.create(dto, actor.id);
+    return this.events.create(dto, actor);
   }
 
   @Patch(':id')
@@ -45,7 +45,7 @@ export class EventsController {
   @ApiOkResponse({ type: Event })
   @ApiNotFoundResponse({ description: 'Event not found.' })
   update(@Param('id') id: string, @Body() dto: UpdateEventDto, @CurrentUser() actor: AuthUser) {
-    return this.events.update(id, dto, actor.id);
+    return this.events.update(id, dto, actor);
   }
 
   @Delete(':id')
@@ -53,7 +53,7 @@ export class EventsController {
   @ApiOperation({ summary: 'Soft-delete an event (sets deleted_at, row is retained in the database).' })
   @ApiNoContentResponse()
   @ApiNotFoundResponse({ description: 'Event not found.' })
-  async remove(@Param('id') id: string) {
-    await this.events.softDelete(id);
+  async remove(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    await this.events.softDelete(id, actor);
   }
 }

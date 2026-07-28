@@ -1,6 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { AuthUser } from '../auth/jwt.strategy';
+import { BranchAccessService } from '../common/branch-access.service';
 import { Branch } from './entities/branch.entity';
 import { CreateBranchDto } from './dto/create-branch.dto';
 import { UpdateBranchDto } from './dto/update-branch.dto';
@@ -11,25 +13,76 @@ export interface BranchWithCounts extends Branch {
   eventCount: number;
 }
 
+export interface PublicBranch {
+  id: string;
+  name: string;
+  description: string | null;
+  city: string | null;
+  country: string;
+  timezone: string;
+  address: string | null;
+  zipCode: string | null;
+  phoneCountryCode: string | null;
+  phoneNumber: string | null;
+  email: string | null;
+  logoUrl: string | null;
+}
+
+function toPublicBranch(branch: Branch): PublicBranch {
+  return {
+    id: branch.id,
+    name: branch.name,
+    description: branch.description,
+    city: branch.city,
+    country: branch.country,
+    timezone: branch.timezone,
+    address: branch.address,
+    zipCode: branch.zipCode,
+    phoneCountryCode: branch.phoneCountryCode,
+    phoneNumber: branch.phoneNumber,
+    email: branch.email,
+    logoUrl: branch.logoUrl,
+  };
+}
+
 @Injectable()
 export class BranchesService {
-  constructor(@InjectRepository(Branch) private readonly branches: Repository<Branch>) {}
+  constructor(
+    @InjectRepository(Branch) private readonly branches: Repository<Branch>,
+    private readonly branchAccess: BranchAccessService,
+  ) {}
 
-  async findAll(): Promise<BranchWithCounts[]> {
+  async findAll(actor: AuthUser): Promise<BranchWithCounts[]> {
     const rows = await this.branches
       .createQueryBuilder('b')
       .where('b.deleted_at IS NULL')
       .orderBy('b.created_at', 'ASC')
       .getMany();
 
-    return this.attachCounts(rows);
+    const withCounts = await this.attachCounts(rows);
+    if (actor.role === 'superadmin') return withCounts;
+
+    const branchIds = await this.branchAccess.branchIdsOf(actor.id);
+    return withCounts.filter((b) => branchIds.has(b.id));
   }
 
-  async findOne(id: string): Promise<BranchWithCounts> {
+  async findOne(id: string, actor: AuthUser): Promise<BranchWithCounts> {
     const branch = await this.branches.findOne({ where: { id } });
     if (!branch) throw new NotFoundException('Branch not found.');
+    await this.branchAccess.assertCanAccess(actor, branch.id, 'Branch not found.');
     const [withCounts] = await this.attachCounts([branch]);
     return withCounts;
+  }
+
+  async findAllPublic(): Promise<PublicBranch[]> {
+    const rows = await this.branches.find({ where: { status: 'active' }, order: { createdAt: 'ASC' } });
+    return rows.map(toPublicBranch);
+  }
+
+  async findOnePublic(id: string): Promise<PublicBranch> {
+    const branch = await this.branches.findOne({ where: { id, status: 'active' } });
+    if (!branch) throw new NotFoundException('Branch not found.');
+    return toPublicBranch(branch);
   }
 
   async create(dto: CreateBranchDto, userId: string): Promise<Branch> {
@@ -37,6 +90,7 @@ export class BranchesService {
 
     const branch = this.branches.create({
       name: dto.name,
+      description: dto.description ?? null,
       city: dto.city ?? null,
       country: dto.country ?? 'Thailand',
       timezone: dto.timezone ?? 'Asia/Bangkok',
@@ -54,15 +108,20 @@ export class BranchesService {
     return this.branches.save(branch);
   }
 
-  async update(id: string, dto: UpdateBranchDto, userId: string): Promise<Branch> {
+  async update(id: string, dto: UpdateBranchDto, userId: string, actor: AuthUser): Promise<Branch> {
     const branch = await this.branches.findOne({ where: { id } });
     if (!branch) throw new NotFoundException('Branch not found.');
+    await this.branchAccess.assertCanAccess(actor, branch.id, 'Branch not found.');
+    if (actor.role !== 'superadmin' && dto.status !== undefined) {
+      throw new ForbiddenException('Only a superadmin can change a branch\'s status.');
+    }
 
     if (dto.name !== undefined && dto.name.trim().toLowerCase() !== branch.name.trim().toLowerCase()) {
       await this.ensureNameIsUnique(dto.name, id);
     }
 
     if (dto.name !== undefined) branch.name = dto.name;
+    if (dto.description !== undefined) branch.description = dto.description;
     if (dto.city !== undefined) branch.city = dto.city;
     if (dto.country !== undefined) branch.country = dto.country;
     if (dto.timezone !== undefined) branch.timezone = dto.timezone;

@@ -2,6 +2,8 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as QRCode from 'qrcode';
+import type { AuthUser } from '../auth/jwt.strategy';
+import { BranchAccessService } from '../common/branch-access.service';
 import { Event } from './entities/event.entity';
 import { EventRsvp } from './entities/event-rsvp.entity';
 import { EventWaitlist } from './entities/event-waitlist.entity';
@@ -30,10 +32,11 @@ export class AttendanceService {
     @InjectRepository(EventRsvp) private readonly rsvps: Repository<EventRsvp>,
     @InjectRepository(EventWaitlist) private readonly waitlist: Repository<EventWaitlist>,
     @InjectRepository(EventAttendance) private readonly attendance: Repository<EventAttendance>,
+    private readonly branchAccess: BranchAccessService,
   ) {}
 
-  async listAttendees(eventId: string): Promise<AttendeeRow[]> {
-    await this.getEventOrThrow(eventId);
+  async listAttendees(eventId: string, actor?: AuthUser): Promise<AttendeeRow[]> {
+    await this.getEventOrThrow(eventId, actor);
 
     return this.rsvps.query(
       `SELECT
@@ -51,8 +54,8 @@ export class AttendanceService {
     );
   }
 
-  async listWaitlist(eventId: string): Promise<WaitlistRow[]> {
-    await this.getEventOrThrow(eventId);
+  async listWaitlist(eventId: string, actor?: AuthUser): Promise<WaitlistRow[]> {
+    await this.getEventOrThrow(eventId, actor);
 
     return this.waitlist.query(
       `SELECT u.id AS "userId", u.first_name || ' ' || u.last_name AS name, u.email, w.position
@@ -64,8 +67,8 @@ export class AttendanceService {
     );
   }
 
-  async addAttendee(eventId: string, dto: AddAttendeeDto): Promise<{ waitlisted: boolean }> {
-    const event = await this.getEventOrThrow(eventId);
+  async addAttendee(eventId: string, dto: AddAttendeeDto, actor?: AuthUser): Promise<{ waitlisted: boolean }> {
+    const event = await this.getEventOrThrow(eventId, actor);
     const status = dto.status ?? 'confirm';
 
     if (status === 'confirm' && (await this.isFull(event))) {
@@ -77,8 +80,13 @@ export class AttendanceService {
     return { waitlisted: false };
   }
 
-  async updateAttendeeStatus(eventId: string, userId: string, status: 'confirm' | 'maybe' | 'cancel'): Promise<void> {
-    const event = await this.getEventOrThrow(eventId);
+  async updateAttendeeStatus(
+    eventId: string,
+    userId: string,
+    status: 'confirm' | 'maybe' | 'cancel',
+    actor?: AuthUser,
+  ): Promise<void> {
+    const event = await this.getEventOrThrow(eventId, actor);
     const existing = await this.rsvps.findOne({ where: { eventId, userId } });
     if (!existing) throw new NotFoundException('This user has no RSVP for this event.');
 
@@ -110,15 +118,15 @@ export class AttendanceService {
     }
   }
 
-  async removeAttendee(eventId: string, userId: string): Promise<void> {
-    await this.getEventOrThrow(eventId);
+  async removeAttendee(eventId: string, userId: string, actor?: AuthUser): Promise<void> {
+    await this.getEventOrThrow(eventId, actor);
     await this.rsvps.delete({ eventId, userId });
     await this.attendance.delete({ eventId, userId });
     await this.waitlist.delete({ eventId, userId });
   }
 
-  async toggleCheckin(eventId: string, userId: string, actorId: string): Promise<{ checkedIn: boolean }> {
-    await this.getEventOrThrow(eventId);
+  async toggleCheckin(eventId: string, userId: string, actor: AuthUser): Promise<{ checkedIn: boolean }> {
+    await this.getEventOrThrow(eventId, actor);
     const existing = await this.attendance.findOne({ where: { eventId, userId } });
 
     if (existing) {
@@ -127,13 +135,13 @@ export class AttendanceService {
     }
 
     await this.attendance.save(
-      this.attendance.create({ eventId, userId, checkedInAt: new Date(), checkedInBy: actorId, method: 'manual' }),
+      this.attendance.create({ eventId, userId, checkedInAt: new Date(), checkedInBy: actor.id, method: 'manual' }),
     );
     return { checkedIn: true };
   }
 
-  async getEventCheckinQr(eventId: string): Promise<{ code: string; qrDataUrl: string }> {
-    await this.getEventOrThrow(eventId);
+  async getEventCheckinQr(eventId: string, actor?: AuthUser): Promise<{ code: string; qrDataUrl: string }> {
+    await this.getEventOrThrow(eventId, actor);
     const qrDataUrl = await QRCode.toDataURL(eventId, { margin: 1, width: 320 });
     return { code: eventId, qrDataUrl };
   }
@@ -155,9 +163,8 @@ export class AttendanceService {
     return { title: event.title, alreadyCheckedIn: false };
   }
 
-  async promoteFromWaitlist(eventId: string, actorId: string): Promise<void> {
-    void actorId;
-    const event = await this.getEventOrThrow(eventId);
+  async promoteFromWaitlist(eventId: string, actor: AuthUser): Promise<void> {
+    const event = await this.getEventOrThrow(eventId, actor);
     if (await this.isFull(event)) {
       throw new ConflictException('Event is already at capacity.');
     }
@@ -198,9 +205,10 @@ export class AttendanceService {
     await this.waitlist.delete({ eventId, userId });
   }
 
-  private async getEventOrThrow(eventId: string): Promise<Event> {
+  private async getEventOrThrow(eventId: string, actor?: AuthUser): Promise<Event> {
     const event = await this.events.findOne({ where: { id: eventId } });
     if (!event) throw new NotFoundException('Event not found.');
+    if (actor) await this.branchAccess.assertCanAccess(actor, event.branchId, 'Event not found.');
     return event;
   }
 }

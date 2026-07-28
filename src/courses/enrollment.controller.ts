@@ -18,27 +18,27 @@ export class EnrollmentController {
 
   @Get('enrollments')
   @ApiOperation({ summary: 'List enrolled students with cumulative attendance %, optionally flagged for a specific session.' })
-  listEnrollments(@Param('offeringId') offeringId: string, @Query('sessionId') sessionId?: string) {
-    return this.enrollment.listEnrollments(offeringId, sessionId);
+  listEnrollments(@Param('offeringId') offeringId: string, @Query('sessionId') sessionId: string | undefined, @CurrentUser() actor: AuthUser) {
+    return this.enrollment.listEnrollments(offeringId, sessionId, actor);
   }
 
   @Post('enrollments')
   @ApiOperation({ summary: 'Enroll a student in this offering.' })
-  enroll(@Param('offeringId') offeringId: string, @Body() dto: EnrollDto) {
-    return this.enrollment.enroll(offeringId, dto);
+  enroll(@Param('offeringId') offeringId: string, @Body() dto: EnrollDto, @CurrentUser() actor: AuthUser) {
+    return this.enrollment.enroll(offeringId, dto, actor);
   }
 
   @Delete('enrollments/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a student from this offering.' })
-  async removeEnrollment(@Param('offeringId') offeringId: string, @Param('userId') userId: string) {
-    await this.enrollment.removeEnrollment(offeringId, userId);
+  async removeEnrollment(@Param('offeringId') offeringId: string, @Param('userId') userId: string, @CurrentUser() actor: AuthUser) {
+    await this.enrollment.removeEnrollment(offeringId, userId, actor);
   }
 
   @Get('sessions/:sessionId/checkin-qr')
   @ApiOperation({ summary: 'Get the classroom check-in QR code for this session, for students to scan themselves.' })
-  getSessionCheckinQr(@Param('sessionId') sessionId: string) {
-    return this.enrollment.getSessionCheckinQr(sessionId);
+  getSessionCheckinQr(@Param('sessionId') sessionId: string, @CurrentUser() actor: AuthUser) {
+    return this.enrollment.getSessionCheckinQr(sessionId, actor);
   }
 
   @Post('sessions/:sessionId/attendance/:userId')
@@ -48,6 +48,6 @@ export class EnrollmentController {
     @Param('userId') userId: string,
     @CurrentUser() actor: AuthUser,
   ) {
-    return this.enrollment.toggleAttendance(sessionId, userId, actor.id);
+    return this.enrollment.toggleAttendance(sessionId, userId, actor.id, actor);
   }
 }

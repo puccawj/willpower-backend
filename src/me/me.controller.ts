@@ -1,9 +1,10 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Patch, Post, Put, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthUser } from '../auth/jwt.strategy';
+import { RegisterDeviceDto } from '../notifications/dto/register-device.dto';
 import { SelfDonateDto } from './dto/self-donate.dto';
 import { SelfEnrollDto } from './dto/self-enroll.dto';
 import { SetMyRsvpDto } from './dto/set-my-rsvp.dto';
@@ -83,5 +84,52 @@ export class MeController {
   @ApiOperation({ summary: 'Make a donation as the current logged-in user.' })
   donateSelf(@Body() dto: SelfDonateDto, @CurrentUser() actor: AuthUser) {
     return this.me.donateSelf(actor.id, dto);
+  }
+
+  @Post('devices')
+  @ApiOperation({ summary: 'Register this device/browser for push notifications (upserts on user + push token).' })
+  async registerDevice(@Body() dto: RegisterDeviceDto, @CurrentUser() actor: AuthUser) {
+    await this.me.registerDevice(actor.id, dto);
+    return { ok: true };
+  }
+
+  @Delete('devices/:pushToken')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Unregister a device (e.g. on logout) so it stops receiving push notifications.' })
+  async unregisterDevice(@Param('pushToken') pushToken: string, @CurrentUser() actor: AuthUser) {
+    await this.me.unregisterDevice(actor.id, pushToken);
+  }
+
+  @Get('notifications')
+  @ApiOperation({ summary: "List the current user's notifications, newest first." })
+  myNotifications(@CurrentUser() actor: AuthUser) {
+    return this.me.myNotifications(actor.id);
+  }
+
+  @Get('notifications/unread-count')
+  @ApiOperation({ summary: "Count the current user's unread notifications." })
+  async myUnreadNotificationCount(@CurrentUser() actor: AuthUser) {
+    return { count: await this.me.myUnreadNotificationCount(actor.id) };
+  }
+
+  @Patch('notifications/:id/read')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Mark one notification as read.' })
+  async markNotificationRead(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    await this.me.markNotificationRead(actor.id, id);
+  }
+
+  @Post('notifications/mark-all-read')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Mark every notification for the current user as read.' })
+  async markAllNotificationsRead(@CurrentUser() actor: AuthUser) {
+    await this.me.markAllNotificationsRead(actor.id);
+  }
+
+  @Delete('notifications/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete one notification for the current user.' })
+  async deleteNotification(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    await this.me.deleteNotification(actor.id, id);
   }
 }

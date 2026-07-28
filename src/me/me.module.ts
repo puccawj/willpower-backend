@@ -8,6 +8,7 @@ import { Donation } from '../donations/entities/donation.entity';
 import { EventsModule } from '../events/events.module';
 import { CoursesModule } from '../courses/courses.module';
 import { DonationsModule } from '../donations/donations.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
 
@@ -17,6 +18,7 @@ import { MeService } from './me.service';
     EventsModule,
     CoursesModule,
     DonationsModule,
+    NotificationsModule,
   ],
   controllers: [MeController],
   providers: [MeService],

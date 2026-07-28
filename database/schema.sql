@@ -567,10 +567,14 @@ CREATE TABLE notifications (
   related_entity varchar(50),
   related_entity_id uuid,
   is_read boolean NOT NULL DEFAULT false,
-  created_at timestamptz NOT NULL DEFAULT now()
+  created_at timestamptz NOT NULL DEFAULT now(),
+  broadcast_id uuid, -- groups every recipient row created by one admin broadcast send
+  target_branch_id uuid REFERENCES branches (id) ON DELETE SET NULL, -- the branch this broadcast was scoped to; null = all branches
+  created_by uuid REFERENCES users (id) ON DELETE SET NULL -- who sent the broadcast, for history display
 );
 
 CREATE INDEX idx_notifications_user_unread ON notifications (user_id, is_read);
+CREATE INDEX idx_notifications_broadcast_id ON notifications (broadcast_id);
 
 -- ============================================================
 -- 19. audit_logs (append-only)

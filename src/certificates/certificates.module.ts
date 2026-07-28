@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BranchAccessModule } from '../common/branch-access.module';
 import { CourseEnrollment } from '../courses/entities/course-enrollment.entity';
 import { CourseOffering } from '../courses/entities/course-offering.entity';
 import { Course } from '../courses/entities/course.entity';
@@ -24,6 +25,7 @@ import { TemplatesService } from './templates.service';
       Course,
       CourseEnrollment,
     ]),
+    BranchAccessModule,
   ],
   controllers: [TemplatesController, CertificatesController, RegistryController],
   providers: [TemplatesService, CertificatesService, CertificateNumberingService, RegistryService],

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { AuthUser } from '../auth/jwt.strategy';
+import { BranchAccessService } from '../common/branch-access.service';
 import { Certificate } from './entities/certificate.entity';
 
 export interface RegistryRow {
@@ -17,9 +19,12 @@ export interface RegistryRow {
 
 @Injectable()
 export class RegistryService {
-  constructor(@InjectRepository(Certificate) private readonly certificates: Repository<Certificate>) {}
+  constructor(
+    @InjectRepository(Certificate) private readonly certificates: Repository<Certificate>,
+    private readonly branchAccess: BranchAccessService,
+  ) {}
 
-  async findAll(): Promise<RegistryRow[]> {
+  async findAll(actor: AuthUser): Promise<RegistryRow[]> {
     const rows: any[] = await this.certificates.query(`
       SELECT
         c.certificate_no,
@@ -30,7 +35,8 @@ export class RegistryService {
         c.issued_at,
         ib.first_name || ' ' || ib.last_name AS issued_by_name,
         CASE WHEN c.voided_at IS NULL THEN 'issued' ELSE 'voided' END AS status,
-        c.voided_at
+        c.voided_at,
+        cof.branch_id AS branch_id
       FROM certificates c
       JOIN users u ON u.id = c.user_id
       LEFT JOIN course_offerings cof ON cof.id = c.offering_id
@@ -48,7 +54,8 @@ export class RegistryService {
         dc.issued_at,
         ib.first_name || ' ' || ib.last_name AS issued_by_name,
         CASE WHEN dc.voided_at IS NULL THEN 'issued' ELSE 'voided' END AS status,
-        dc.voided_at
+        dc.voided_at,
+        d.branch_id AS branch_id
       FROM donation_certificates dc
       JOIN donations d ON d.id = dc.donation_id
       LEFT JOIN events e ON e.id = d.event_id
@@ -58,7 +65,15 @@ export class RegistryService {
       ORDER BY issued_at DESC
     `);
 
-    return rows.map((r) => ({
+    const visibleRows =
+      actor.role === 'superadmin'
+        ? rows
+        : await (async () => {
+            const branchIds = await this.branchAccess.branchIdsOf(actor.id);
+            return rows.filter((r) => r.branch_id && branchIds.has(r.branch_id));
+          })();
+
+    return visibleRows.map((r) => ({
       certificateNo: r.certificate_no,
       recipientName: r.recipient_name,
       recipientEmail: r.recipient_email,

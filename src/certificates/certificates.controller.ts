@@ -18,8 +18,8 @@ export class CertificatesController {
 
   @Get()
   @ApiOperation({ summary: 'List issued certificates, optionally filtered by offering.' })
-  findAll(@Query('offeringId') offeringId?: string) {
-    return this.certificates.findAll(offeringId);
+  findAll(@Query('offeringId') offeringId: string | undefined, @CurrentUser() actor: AuthUser) {
+    return this.certificates.findAll(actor, offeringId);
   }
 
   @Get('next-number')
@@ -31,13 +31,13 @@ export class CertificatesController {
   @Post()
   @ApiOperation({ summary: 'Issue a certificate to an eligible, enrolled student.' })
   issue(@Body() dto: IssueCertificateDto, @CurrentUser() actor: AuthUser) {
-    return this.certificates.issue(dto, actor.id);
+    return this.certificates.issue(dto, actor);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Void an issued certificate so it can be re-issued.' })
   async remove(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
-    await this.certificates.voidCertificate(id, actor.id);
+    await this.certificates.voidCertificate(id, actor);
   }
 }

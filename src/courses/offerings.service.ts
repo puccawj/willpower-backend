@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import type { AuthUser } from '../auth/jwt.strategy';
@@ -34,7 +34,6 @@ export class OfferingsService {
     const withDetails = await this.attachDetails(rows);
 
     if (actor.role === 'superadmin') return withDetails;
-    if (actor.role === 'instructor') return withDetails.filter((o) => o.instructorId === actor.id);
 
     const actorBranchIds = await this.branchIdsOf(actor.id);
     return withDetails.filter((o) => actorBranchIds.has(o.branchId));
@@ -44,10 +43,7 @@ export class OfferingsService {
     const offering = await this.offerings.findOne({ where: { id } });
     if (!offering) throw new NotFoundException('Offering not found.');
 
-    if (actor.role === 'instructor' && offering.instructorId !== actor.id) {
-      throw new NotFoundException('Offering not found.');
-    }
-    if (actor.role !== 'superadmin' && actor.role !== 'instructor') {
+    if (actor.role !== 'superadmin') {
       const actorBranchIds = await this.branchIdsOf(actor.id);
       if (!actorBranchIds.has(offering.branchId)) throw new NotFoundException('Offering not found.');
     }
@@ -56,11 +52,18 @@ export class OfferingsService {
     return withDetails;
   }
 
-  async create(dto: CreateOfferingDto, actorId: string): Promise<CourseOffering> {
+  async create(dto: CreateOfferingDto, actor: AuthUser): Promise<CourseOffering> {
     this.ensureEndAfterStart(dto.startDate, dto.endDate);
 
     const course = await this.courses.findOne({ where: { id: dto.courseId } });
     if (!course) throw new BadRequestException('Course not found.');
+
+    if (actor.role !== 'superadmin') {
+      const actorBranchIds = await this.branchIdsOf(actor.id);
+      if (!actorBranchIds.has(dto.branchId)) {
+        throw new ForbiddenException('You can only create offerings for your own branch.');
+      }
+    }
 
     const offering = this.offerings.create({
       courseId: dto.courseId,
@@ -72,18 +75,25 @@ export class OfferingsService {
       location: dto.location ?? null,
       mode: dto.mode,
       status: dto.status ?? 'draft',
-      createdBy: actorId,
-      updatedBy: actorId,
+      createdBy: actor.id,
+      updatedBy: actor.id,
     });
     const saved = await this.offerings.save(offering);
 
-    await this.generateSessions(saved.id, dto.startDate, course.totalSessions, actorId);
+    await this.generateSessions(saved.id, dto.startDate, course.totalSessions, actor.id);
     return saved;
   }
 
-  async update(id: string, dto: UpdateOfferingDto, actorId: string): Promise<CourseOffering> {
+  async update(id: string, dto: UpdateOfferingDto, actor: AuthUser): Promise<CourseOffering> {
     const offering = await this.offerings.findOne({ where: { id } });
     if (!offering) throw new NotFoundException('Offering not found.');
+    if (actor.role !== 'superadmin') {
+      const actorBranchIds = await this.branchIdsOf(actor.id);
+      if (!actorBranchIds.has(offering.branchId)) throw new NotFoundException('Offering not found.');
+      if (dto.branchId !== undefined && !actorBranchIds.has(dto.branchId)) {
+        throw new ForbiddenException('You can only move offerings to your own branch.');
+      }
+    }
 
     const nextStart = dto.startDate ?? offering.startDate;
     const nextEnd = dto.endDate ?? offering.endDate;
@@ -98,20 +108,28 @@ export class OfferingsService {
     if (dto.location !== undefined) offering.location = dto.location ?? null;
     if (dto.mode !== undefined) offering.mode = dto.mode;
     if (dto.status !== undefined) offering.status = dto.status;
-    offering.updatedBy = actorId;
+    offering.updatedBy = actor.id;
 
     return this.offerings.save(offering);
   }
 
-  async softDelete(id: string): Promise<void> {
+  async softDelete(id: string, actor: AuthUser): Promise<void> {
     const offering = await this.offerings.findOne({ where: { id } });
     if (!offering) throw new NotFoundException('Offering not found.');
+    if (actor.role !== 'superadmin') {
+      const actorBranchIds = await this.branchIdsOf(actor.id);
+      if (!actorBranchIds.has(offering.branchId)) throw new NotFoundException('Offering not found.');
+    }
     await this.offerings.softDelete(id);
   }
 
-  async listSessions(offeringId: string): Promise<CourseSession[]> {
+  async listSessions(offeringId: string, actor: AuthUser): Promise<CourseSession[]> {
     const offering = await this.offerings.findOne({ where: { id: offeringId } });
     if (!offering) throw new NotFoundException('Offering not found.');
+    if (actor.role !== 'superadmin') {
+      const actorBranchIds = await this.branchIdsOf(actor.id);
+      if (!actorBranchIds.has(offering.branchId)) throw new NotFoundException('Offering not found.');
+    }
     return this.sessions.find({ where: { offeringId }, order: { sessionNo: 'ASC' } });
   }
 

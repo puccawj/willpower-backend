@@ -29,12 +29,15 @@ import { EventPhoto } from './events/entities/event-photo.entity';
 import { EventRsvp } from './events/entities/event-rsvp.entity';
 import { EventWaitlist } from './events/entities/event-waitlist.entity';
 import { MeModule } from './me/me.module';
+import { Notification } from './notifications/entities/notification.entity';
+import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
 import { TeamMembersModule } from './team-members/team-members.module';
 import { TeamMember } from './team-members/entities/team-member.entity';
 import { UploadsModule } from './uploads/uploads.module';
 import { User } from './users/entities/user.entity';
 import { UserBranch } from './users/entities/user-branch.entity';
+import { UserDevice } from './users/entities/user-device.entity';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -69,6 +72,8 @@ import { UsersModule } from './users/users.module';
           CertificateTemplate,
           Certificate,
           CertificateNumberCounter,
+          Notification,
+          UserDevice,
         ],
         synchronize: false,
       }),
@@ -83,6 +88,7 @@ import { UsersModule } from './users/users.module';
     CoursesModule,
     CertificatesModule,
     ReportsModule,
+    NotificationsModule,
     MeModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

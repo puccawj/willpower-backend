@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import type { AuthUser } from '../auth/jwt.strategy';
+import { BranchAccessService } from '../common/branch-access.service';
 import { Event } from './entities/event.entity';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -30,22 +32,33 @@ export interface PublicEventRow {
 
 @Injectable()
 export class EventsService {
-  constructor(@InjectRepository(Event) private readonly events: Repository<Event>) {}
+  constructor(
+    @InjectRepository(Event) private readonly events: Repository<Event>,
+    private readonly branchAccess: BranchAccessService,
+  ) {}
 
-  async findAll(): Promise<EventWithCounts[]> {
+  async findAll(actor: AuthUser): Promise<EventWithCounts[]> {
     const rows = await this.events.find({ order: { startAt: 'ASC' } });
-    return this.attachCounts(rows);
+    const withCounts = await this.attachCounts(rows);
+    return this.branchAccess.filterByBranch(actor, withCounts);
   }
 
-  async findOne(id: string): Promise<EventWithCounts> {
+  async findOne(id: string, actor: AuthUser): Promise<EventWithCounts> {
     const event = await this.events.findOne({ where: { id } });
     if (!event) throw new NotFoundException('Event not found.');
+    await this.branchAccess.assertCanAccess(actor, event.branchId, 'Event not found.');
     const [withCounts] = await this.attachCounts([event]);
     return withCounts;
   }
 
-  async create(dto: CreateEventDto, actorId: string): Promise<Event> {
+  async create(dto: CreateEventDto, actor: AuthUser): Promise<Event> {
     this.ensureEndAfterStart(dto.startAt, dto.endAt);
+    if (actor.role !== 'superadmin') {
+      const branchIds = await this.branchAccess.branchIdsOf(actor.id);
+      if (!branchIds.has(dto.branchId)) {
+        throw new ForbiddenException('You can only create events for your own branch.');
+      }
+    }
 
     const event = this.events.create({
       branchId: dto.branchId,
@@ -59,15 +72,22 @@ export class EventsService {
       publishAt: dto.publishAt ? new Date(dto.publishAt) : null,
       coverImageUrl: dto.coverImage ?? null,
       status: dto.status ?? 'draft',
-      createdBy: actorId,
-      updatedBy: actorId,
+      createdBy: actor.id,
+      updatedBy: actor.id,
     });
     return this.events.save(event);
   }
 
-  async update(id: string, dto: UpdateEventDto, actorId: string): Promise<Event> {
+  async update(id: string, dto: UpdateEventDto, actor: AuthUser): Promise<Event> {
     const event = await this.events.findOne({ where: { id } });
     if (!event) throw new NotFoundException('Event not found.');
+    await this.branchAccess.assertCanAccess(actor, event.branchId, 'Event not found.');
+    if (dto.branchId !== undefined && actor.role !== 'superadmin') {
+      const branchIds = await this.branchAccess.branchIdsOf(actor.id);
+      if (!branchIds.has(dto.branchId)) {
+        throw new ForbiddenException('You can only move events to your own branch.');
+      }
+    }
 
     const nextStart = dto.startAt ? new Date(dto.startAt) : event.startAt;
     const nextEnd = dto.endAt ? new Date(dto.endAt) : event.endAt;
@@ -86,14 +106,15 @@ export class EventsService {
     if (dto.publishAt !== undefined) event.publishAt = dto.publishAt ? new Date(dto.publishAt) : null;
     if (dto.coverImage !== undefined) event.coverImageUrl = dto.coverImage;
     if (dto.status !== undefined) event.status = dto.status;
-    event.updatedBy = actorId;
+    event.updatedBy = actor.id;
 
     return this.events.save(event);
   }
 
-  async softDelete(id: string): Promise<void> {
+  async softDelete(id: string, actor: AuthUser): Promise<void> {
     const event = await this.events.findOne({ where: { id } });
     if (!event) throw new NotFoundException('Event not found.');
+    await this.branchAccess.assertCanAccess(actor, event.branchId, 'Event not found.');
     await this.events.softDelete(id);
   }
 

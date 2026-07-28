@@ -19,7 +19,7 @@ export class OfferingsController {
   constructor(private readonly offerings: OfferingsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List offerings. Instructors see only their own; admins see only their branches.' })
+  @ApiOperation({ summary: 'List offerings. Superadmin sees everything; admin/instructor see only their own branches.' })
   @ApiOkResponse({ type: CourseOffering, isArray: true })
   findAll(@CurrentUser() actor: AuthUser) {
     return this.offerings.findAll(actor);
@@ -35,8 +35,8 @@ export class OfferingsController {
 
   @Get(':id/sessions')
   @ApiOperation({ summary: 'List the auto-generated session calendar for an offering.' })
-  listSessions(@Param('id') id: string) {
-    return this.offerings.listSessions(id);
+  listSessions(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    return this.offerings.listSessions(id, actor);
   }
 
   @Post()
@@ -44,7 +44,7 @@ export class OfferingsController {
   @ApiOperation({ summary: 'Create a new course offering. Sessions are auto-generated weekly from the start date.' })
   @ApiOkResponse({ type: CourseOffering })
   create(@Body() dto: CreateOfferingDto, @CurrentUser() actor: AuthUser) {
-    return this.offerings.create(dto, actor.id);
+    return this.offerings.create(dto, actor);
   }
 
   @Patch(':id')
@@ -53,7 +53,7 @@ export class OfferingsController {
   @ApiOkResponse({ type: CourseOffering })
   @ApiNotFoundResponse({ description: 'Offering not found.' })
   update(@Param('id') id: string, @Body() dto: UpdateOfferingDto, @CurrentUser() actor: AuthUser) {
-    return this.offerings.update(id, dto, actor.id);
+    return this.offerings.update(id, dto, actor);
   }
 
   @Delete(':id')
@@ -62,7 +62,7 @@ export class OfferingsController {
   @ApiOperation({ summary: 'Soft-delete a course offering.' })
   @ApiNoContentResponse()
   @ApiNotFoundResponse({ description: 'Offering not found.' })
-  async remove(@Param('id') id: string) {
-    await this.offerings.softDelete(id);
+  async remove(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    await this.offerings.softDelete(id, actor);
   }
 }

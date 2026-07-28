@@ -19,26 +19,31 @@ export class EventPhotosController {
 
   @Get()
   @ApiOperation({ summary: "List an event's atmosphere photos." })
-  findAll(@Param('eventId') eventId: string) {
-    return this.photos.findAllForEvent(eventId);
+  findAll(@Param('eventId') eventId: string, @CurrentUser() actor: AuthUser) {
+    return this.photos.findAllForEvent(eventId, actor);
   }
 
   @Post()
   @ApiOperation({ summary: 'Add a photo to an event gallery.' })
   create(@Param('eventId') eventId: string, @Body() dto: CreateEventPhotoDto, @CurrentUser() actor: AuthUser) {
-    return this.photos.create(eventId, dto, actor.id);
+    return this.photos.create(eventId, dto, actor);
   }
 
   @Patch(':id')
   @ApiOperation({ summary: "Update a photo's caption." })
-  update(@Param('eventId') eventId: string, @Param('id') id: string, @Body() dto: UpdateEventPhotoDto) {
-    return this.photos.update(eventId, id, dto);
+  update(
+    @Param('eventId') eventId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateEventPhotoDto,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.photos.update(eventId, id, dto, actor);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a photo from an event gallery.' })
-  async remove(@Param('eventId') eventId: string, @Param('id') id: string) {
-    await this.photos.remove(eventId, id);
+  async remove(@Param('eventId') eventId: string, @Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    await this.photos.remove(eventId, id, actor);
   }
 }

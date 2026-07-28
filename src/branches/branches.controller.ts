@@ -11,7 +11,7 @@ import { Branch } from './entities/branch.entity';
 
 @ApiTags('branches')
 @ApiBearerAuth('access-token')
-@ApiForbiddenResponse({ description: 'Requires the superadmin or admin role (write operations require superadmin).' })
+@ApiForbiddenResponse({ description: 'Requires the superadmin or admin role (create/delete require superadmin).' })
 @UseGuards(RolesGuard)
 @Roles('superadmin', 'admin')
 @Controller('branches')
@@ -19,18 +19,18 @@ export class BranchesController {
   constructor(private readonly branches: BranchesService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List all active (non-deleted) branches with computed admin/user/event counts.' })
+  @ApiOperation({ summary: 'List branches with computed admin/user/event counts. Superadmin sees all; admin sees only their own.' })
   @ApiOkResponse({ type: Branch, isArray: true })
-  findAll() {
-    return this.branches.findAll();
+  findAll(@CurrentUser() actor: AuthUser) {
+    return this.branches.findAll(actor);
   }
 
   @Get(':id')
   @ApiOperation({ summary: 'Get a single branch by id.' })
   @ApiOkResponse({ type: Branch })
   @ApiNotFoundResponse({ description: 'Branch not found.' })
-  findOne(@Param('id') id: string) {
-    return this.branches.findOne(id);
+  findOne(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    return this.branches.findOne(id, actor);
   }
 
   @Post()
@@ -42,12 +42,11 @@ export class BranchesController {
   }
 
   @Patch(':id')
-  @Roles('superadmin')
-  @ApiOperation({ summary: 'Update a branch. Superadmin only.' })
+  @ApiOperation({ summary: "Update a branch. Admin can only update their own branch's info; status changes require superadmin." })
   @ApiOkResponse({ type: Branch })
   @ApiNotFoundResponse({ description: 'Branch not found.' })
-  update(@Param('id') id: string, @Body() dto: UpdateBranchDto, @CurrentUser() user: AuthUser) {
-    return this.branches.update(id, dto, user.id);
+  update(@Param('id') id: string, @Body() dto: UpdateBranchDto, @CurrentUser() actor: AuthUser) {
+    return this.branches.update(id, dto, actor.id, actor);
   }
 
   @Delete(':id')

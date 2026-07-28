@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { BranchAccessModule } from '../common/branch-access.module';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
 import { Event } from './entities/event.entity';
@@ -17,7 +18,10 @@ import { EventsService } from './events.service';
 import { PublicEventsController } from './public-events.controller';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Event, EventRsvp, EventWaitlist, EventAttendance, EventNeed, EventPhoto])],
+  imports: [
+    TypeOrmModule.forFeature([Event, EventRsvp, EventWaitlist, EventAttendance, EventNeed, EventPhoto]),
+    BranchAccessModule,
+  ],
   controllers: [EventsController, AttendanceController, PublicEventsController, EventNeedsController, EventPhotosController],
   providers: [EventsService, AttendanceService, EventNeedsService, EventPhotosService],
   exports: [AttendanceService, EventNeedsService, EventPhotosService],

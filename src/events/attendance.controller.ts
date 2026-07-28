@@ -19,50 +19,55 @@ export class AttendanceController {
 
   @Get('attendees')
   @ApiOperation({ summary: 'List RSVP’d attendees for an event with their check-in status.' })
-  listAttendees(@Param('eventId') eventId: string) {
-    return this.attendance.listAttendees(eventId);
+  listAttendees(@Param('eventId') eventId: string, @CurrentUser() actor: AuthUser) {
+    return this.attendance.listAttendees(eventId, actor);
   }
 
   @Post('attendees')
   @ApiOperation({ summary: 'Add a user as an attendee. Auto-waitlists if the event is at capacity.' })
-  addAttendee(@Param('eventId') eventId: string, @Body() dto: AddAttendeeDto) {
-    return this.attendance.addAttendee(eventId, dto);
+  addAttendee(@Param('eventId') eventId: string, @Body() dto: AddAttendeeDto, @CurrentUser() actor: AuthUser) {
+    return this.attendance.addAttendee(eventId, dto, actor);
   }
 
   @Patch('attendees/:userId')
   @ApiOperation({ summary: 'Change an attendee’s RSVP status.' })
-  updateAttendee(@Param('eventId') eventId: string, @Param('userId') userId: string, @Body() dto: UpdateAttendeeDto) {
-    return this.attendance.updateAttendeeStatus(eventId, userId, dto.status);
+  updateAttendee(
+    @Param('eventId') eventId: string,
+    @Param('userId') userId: string,
+    @Body() dto: UpdateAttendeeDto,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.attendance.updateAttendeeStatus(eventId, userId, dto.status, actor);
   }
 
   @Delete('attendees/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a user’s RSVP, check-in, and waitlist entry for this event.' })
-  async removeAttendee(@Param('eventId') eventId: string, @Param('userId') userId: string) {
-    await this.attendance.removeAttendee(eventId, userId);
+  async removeAttendee(@Param('eventId') eventId: string, @Param('userId') userId: string, @CurrentUser() actor: AuthUser) {
+    await this.attendance.removeAttendee(eventId, userId, actor);
   }
 
   @Post('attendees/:userId/checkin')
   @ApiOperation({ summary: 'Toggle check-in for an attendee.' })
   toggleCheckin(@Param('eventId') eventId: string, @Param('userId') userId: string, @CurrentUser() actor: AuthUser) {
-    return this.attendance.toggleCheckin(eventId, userId, actor.id);
+    return this.attendance.toggleCheckin(eventId, userId, actor);
   }
 
   @Get('checkin-qr')
   @ApiOperation({ summary: 'Get the venue check-in QR code for this event, for guests to scan themselves.' })
-  getCheckinQr(@Param('eventId') eventId: string) {
-    return this.attendance.getEventCheckinQr(eventId);
+  getCheckinQr(@Param('eventId') eventId: string, @CurrentUser() actor: AuthUser) {
+    return this.attendance.getEventCheckinQr(eventId, actor);
   }
 
   @Get('waitlist')
   @ApiOperation({ summary: 'List the waitlist for an event, ordered by position.' })
-  listWaitlist(@Param('eventId') eventId: string) {
-    return this.attendance.listWaitlist(eventId);
+  listWaitlist(@Param('eventId') eventId: string, @CurrentUser() actor: AuthUser) {
+    return this.attendance.listWaitlist(eventId, actor);
   }
 
   @Post('waitlist/promote')
   @ApiOperation({ summary: 'Promote the next waitlisted user to a confirmed RSVP.' })
   promote(@Param('eventId') eventId: string, @CurrentUser() actor: AuthUser) {
-    return this.attendance.promoteFromWaitlist(eventId, actor.id);
+    return this.attendance.promoteFromWaitlist(eventId, actor);
   }
 }

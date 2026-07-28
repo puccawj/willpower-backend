@@ -1,6 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
+import type { AuthUser } from '../auth/jwt.strategy';
+import { BranchAccessService } from '../common/branch-access.service';
 import { CourseEnrollment } from '../courses/entities/course-enrollment.entity';
 import { CourseOffering } from '../courses/entities/course-offering.entity';
 import { Course } from '../courses/entities/course.entity';
@@ -25,27 +27,43 @@ export class CertificatesService {
     @InjectRepository(CourseEnrollment) private readonly enrollments: Repository<CourseEnrollment>,
     private readonly templatesService: TemplatesService,
     private readonly numbering: CertificateNumberingService,
+    private readonly branchAccess: BranchAccessService,
   ) {}
 
   reserveNextNumber(): Promise<string> {
     return this.numbering.reserveNext(NUMBER_PREFIX);
   }
 
-  async findAll(offeringId?: string): Promise<CertificateRow[]> {
+  async findAll(actor: AuthUser, offeringId?: string): Promise<CertificateRow[]> {
+    if (offeringId) {
+      const offering = await this.offerings.findOne({ where: { id: offeringId } });
+      if (!offering) throw new NotFoundException('Offering not found.');
+      await this.branchAccess.assertCanAccess(actor, offering.branchId, 'Offering not found.');
+    }
+
     const rows: any[] = await this.certificates.query(
       offeringId
         ? `SELECT c.*, u.first_name, u.last_name, u.email
              FROM certificates c JOIN users u ON u.id = c.user_id
             WHERE c.offering_id = $1 AND c.voided_at IS NULL
             ORDER BY c.issued_at DESC`
-        : `SELECT c.*, u.first_name, u.last_name, u.email
+        : `SELECT c.*, u.first_name, u.last_name, u.email, o.branch_id
              FROM certificates c JOIN users u ON u.id = c.user_id
+             JOIN course_offerings o ON o.id = c.offering_id
             WHERE c.voided_at IS NULL
             ORDER BY c.issued_at DESC`,
       offeringId ? [offeringId] : [],
     );
 
-    return rows.map((r) => ({
+    const visibleRows =
+      actor.role === 'superadmin' || offeringId
+        ? rows
+        : await (async () => {
+            const branchIds = await this.branchAccess.branchIdsOf(actor.id);
+            return rows.filter((r) => branchIds.has(r.branch_id));
+          })();
+
+    return visibleRows.map((r) => ({
       id: r.id,
       userId: r.user_id,
       offeringId: r.offering_id,
@@ -63,9 +81,10 @@ export class CertificatesService {
     }));
   }
 
-  async issue(dto: IssueCertificateDto, actorId: string): Promise<Certificate> {
+  async issue(dto: IssueCertificateDto, actor: AuthUser): Promise<Certificate> {
     const offering = await this.offerings.findOne({ where: { id: dto.offeringId } });
     if (!offering) throw new NotFoundException('Offering not found.');
+    await this.branchAccess.assertCanAccess(actor, offering.branchId, 'Offering not found.');
 
     const enrollment = await this.enrollments.findOne({ where: { offeringId: dto.offeringId, userId: dto.userId } });
     if (!enrollment) throw new BadRequestException('This student is not enrolled in this offering.');
@@ -102,7 +121,7 @@ export class CertificatesService {
       templateId: template.id,
       certificateNo: dto.certificateNo,
       attendancePercent: attendancePercent.toFixed(2),
-      issuedBy: actorId,
+      issuedBy: actor.id,
       fileUrl: dto.fileUrl,
     });
     try {
@@ -115,13 +134,17 @@ export class CertificatesService {
     }
   }
 
-  async voidCertificate(id: string, actorId: string): Promise<void> {
+  async voidCertificate(id: string, actor: AuthUser): Promise<void> {
     const certificate = await this.certificates.findOne({ where: { id } });
     if (!certificate) throw new NotFoundException('Certificate not found.');
+    if (certificate.offeringId) {
+      const offering = await this.offerings.findOne({ where: { id: certificate.offeringId } });
+      if (offering) await this.branchAccess.assertCanAccess(actor, offering.branchId, 'Certificate not found.');
+    }
     if (certificate.voidedAt) return;
 
     certificate.voidedAt = new Date();
-    certificate.voidedBy = actorId;
+    certificate.voidedBy = actor.id;
     await this.certificates.save(certificate);
   }
 }

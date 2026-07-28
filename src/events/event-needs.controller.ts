@@ -19,14 +19,14 @@ export class EventNeedsController {
 
   @Get()
   @ApiOperation({ summary: 'List the donation wishlist items for an event.' })
-  findAll(@Param('eventId') eventId: string) {
-    return this.needs.findAllForEvent(eventId);
+  findAll(@Param('eventId') eventId: string, @CurrentUser() actor: AuthUser) {
+    return this.needs.findAllForEvent(eventId, actor);
   }
 
   @Post()
   @ApiOperation({ summary: 'Add a wishlist item (need) to an event.' })
   create(@Param('eventId') eventId: string, @Body() dto: CreateEventNeedDto, @CurrentUser() actor: AuthUser) {
-    return this.needs.create(eventId, dto, actor.id);
+    return this.needs.create(eventId, dto, actor);
   }
 
   @Patch(':id')
@@ -37,13 +37,13 @@ export class EventNeedsController {
     @Body() dto: UpdateEventNeedDto,
     @CurrentUser() actor: AuthUser,
   ) {
-    return this.needs.update(eventId, id, dto, actor.id);
+    return this.needs.update(eventId, id, dto, actor);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @ApiOperation({ summary: 'Remove a wishlist item.' })
-  async remove(@Param('eventId') eventId: string, @Param('id') id: string) {
-    await this.needs.remove(eventId, id);
+  async remove(@Param('eventId') eventId: string, @Param('id') id: string, @CurrentUser() actor: AuthUser) {
+    await this.needs.remove(eventId, id, actor);
   }
 }

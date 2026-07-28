@@ -15,6 +15,11 @@ export class CreateBranchDto {
   @MaxLength(120)
   city?: string;
 
+  @ApiPropertyOptional({ description: 'Shown on the public website branch detail page.' })
+  @IsOptional()
+  @IsString()
+  description?: string;
+
   @ApiPropertyOptional({ example: 'United States', default: 'Thailand' })
   @IsOptional()
   @IsString()
