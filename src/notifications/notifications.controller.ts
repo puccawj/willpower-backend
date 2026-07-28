@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -26,5 +26,12 @@ export class NotificationsController {
   @ApiOperation({ summary: 'List past broadcasts. Superadmin sees all; admin sees only broadcasts scoped to their own branch.' })
   listBroadcasts(@CurrentUser() actor: AuthUser) {
     return this.notifications.listBroadcasts(actor);
+  }
+
+  @Delete('broadcasts/:broadcastId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Delete a broadcast and every recipient notification it created.' })
+  async deleteBroadcast(@Param('broadcastId') broadcastId: string, @CurrentUser() actor: AuthUser) {
+    await this.notifications.deleteBroadcast(broadcastId, actor);
   }
 }

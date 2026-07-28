@@ -122,6 +122,17 @@ export class NotificationsService {
     }));
   }
 
+  async deleteBroadcast(broadcastId: string, actor: AuthUser): Promise<void> {
+    if (actor.role !== 'superadmin') {
+      const branchIds = await this.branchAccess.branchIdsOf(actor.id);
+      const row = await this.notifications.findOne({ where: { broadcastId } });
+      if (!row || !row.targetBranchId || !branchIds.has(row.targetBranchId)) {
+        throw new ForbiddenException('You can only delete broadcasts scoped to your own branch.');
+      }
+    }
+    await this.notifications.delete({ broadcastId });
+  }
+
   async findAllForUser(userId: string): Promise<Notification[]> {
     return this.notifications.find({ where: { userId }, order: { createdAt: 'DESC' }, take: 50 });
   }
