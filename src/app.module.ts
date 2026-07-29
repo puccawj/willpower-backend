@@ -28,10 +28,16 @@ import { EventNeed } from './events/entities/event-need.entity';
 import { EventPhoto } from './events/entities/event-photo.entity';
 import { EventRsvp } from './events/entities/event-rsvp.entity';
 import { EventWaitlist } from './events/entities/event-waitlist.entity';
+import { HomeBanner } from './home-banners/entities/home-banner.entity';
+import { HomeBannersModule } from './home-banners/home-banners.module';
 import { MeModule } from './me/me.module';
+import { Rating } from './ratings/entities/rating.entity';
+import { RatingsModule } from './ratings/ratings.module';
 import { Notification } from './notifications/entities/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
+import { SiteContent } from './site-content/entities/site-content.entity';
+import { SiteContentModule } from './site-content/site-content.module';
 import { TeamMembersModule } from './team-members/team-members.module';
 import { TeamMember } from './team-members/entities/team-member.entity';
 import { UploadsModule } from './uploads/uploads.module';
@@ -74,6 +80,9 @@ import { UsersModule } from './users/users.module';
           CertificateNumberCounter,
           Notification,
           UserDevice,
+          SiteContent,
+          HomeBanner,
+          Rating,
         ],
         synchronize: false,
       }),
@@ -89,6 +98,9 @@ import { UsersModule } from './users/users.module';
     CertificatesModule,
     ReportsModule,
     NotificationsModule,
+    SiteContentModule,
+    HomeBannersModule,
+    RatingsModule,
     MeModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

@@ -595,4 +595,51 @@ CREATE INDEX idx_audit_logs_entity ON audit_logs (entity, entity_id);
 CREATE INDEX idx_audit_logs_user_id ON audit_logs (user_id);
 CREATE INDEX idx_audit_logs_created_at ON audit_logs (created_at);
 
+-- ============================================================
+-- 20. site_content (admin-editable public pages, e.g. About / Privacy Policy)
+-- ============================================================
+
+CREATE TABLE site_content (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  slug varchar(50) NOT NULL UNIQUE,
+  content jsonb NOT NULL DEFAULT '{}'::jsonb,
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  updated_by uuid REFERENCES users (id) ON DELETE SET NULL
+);
+
+-- ============================================================
+-- 21. home_banners (admin-managed Home page banner carousel)
+-- ============================================================
+
+CREATE TABLE home_banners (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  image_url text NOT NULL,
+  link_url text,
+  start_date date,
+  end_date date,
+  is_active boolean NOT NULL DEFAULT true,
+  sort_order integer NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+-- ============================================================
+-- 22. ratings (5-star feedback on Events and Course Offerings)
+-- ============================================================
+
+CREATE TYPE rating_target_type AS ENUM ('event', 'offering');
+
+CREATE TABLE ratings (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  target_type rating_target_type NOT NULL,
+  target_id uuid NOT NULL,
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  stars smallint NOT NULL CHECK (stars BETWEEN 1 AND 5),
+  note text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (target_type, target_id, user_id)
+);
+
+CREATE INDEX idx_ratings_target ON ratings (target_type, target_id);
+
 COMMIT;
