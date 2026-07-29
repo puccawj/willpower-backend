@@ -4,6 +4,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthUser } from '../auth/jwt.strategy';
+import { RatingsService } from '../ratings/ratings.service';
 import { CreateOfferingDto } from './dto/create-offering.dto';
 import { UpdateOfferingDto } from './dto/update-offering.dto';
 import { CourseOffering } from './entities/course-offering.entity';
@@ -16,7 +17,10 @@ import { OfferingsService } from './offerings.service';
 @Roles('superadmin', 'admin', 'instructor')
 @Controller('course-offerings')
 export class OfferingsController {
-  constructor(private readonly offerings: OfferingsService) {}
+  constructor(
+    private readonly offerings: OfferingsService,
+    private readonly ratings: RatingsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List offerings. Superadmin sees everything; admin/instructor see only their own branches.' })
@@ -37,6 +41,12 @@ export class OfferingsController {
   @ApiOperation({ summary: 'List the auto-generated session calendar for an offering.' })
   listSessions(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
     return this.offerings.listSessions(id, actor);
+  }
+
+  @Get(':id/ratings')
+  @ApiOperation({ summary: 'List every rating (stars + private note + who gave it) submitted for this offering, newest first.' })
+  listRatings(@Param('id') id: string) {
+    return this.ratings.adminList('offering', id);
   }
 
   @Post()

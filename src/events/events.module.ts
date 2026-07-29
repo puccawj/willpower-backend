@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BranchAccessModule } from '../common/branch-access.module';
+import { RatingsModule } from '../ratings/ratings.module';
 import { AttendanceController } from './attendance.controller';
 import { AttendanceService } from './attendance.service';
 import { Event } from './entities/event.entity';
@@ -21,6 +22,7 @@ import { PublicEventsController } from './public-events.controller';
   imports: [
     TypeOrmModule.forFeature([Event, EventRsvp, EventWaitlist, EventAttendance, EventNeed, EventPhoto]),
     BranchAccessModule,
+    RatingsModule,
   ],
   controllers: [EventsController, AttendanceController, PublicEventsController, EventNeedsController, EventPhotosController],
   providers: [EventsService, AttendanceService, EventNeedsService, EventPhotosService],

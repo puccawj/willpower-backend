@@ -5,6 +5,8 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthUser } from '../auth/jwt.strategy';
 import { RegisterDeviceDto } from '../notifications/dto/register-device.dto';
+import { CreateRatingDto } from '../ratings/dto/create-rating.dto';
+import { RatingsService } from '../ratings/ratings.service';
 import { SelfDonateDto } from './dto/self-donate.dto';
 import { SelfEnrollDto } from './dto/self-enroll.dto';
 import { SetMyRsvpDto } from './dto/set-my-rsvp.dto';
@@ -14,7 +16,10 @@ import { MeService } from './me.service';
 @ApiBearerAuth('access-token')
 @Controller('me')
 export class MeController {
-  constructor(private readonly me: MeService) {}
+  constructor(
+    private readonly me: MeService,
+    private readonly ratings: RatingsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'Get the current logged-in user profile.' })
@@ -66,6 +71,30 @@ export class MeController {
   @ApiOperation({ summary: 'Check myself in to a course session by scanning the classroom QR code.' })
   selfCheckinSession(@Param('sessionId') sessionId: string, @CurrentUser() actor: AuthUser) {
     return this.me.selfCheckinSession(actor.id, sessionId);
+  }
+
+  @Get('events/:eventId/rating')
+  @ApiOperation({ summary: 'Get my own rating for an event, if I have rated it.' })
+  myEventRating(@Param('eventId') eventId: string, @CurrentUser() actor: AuthUser) {
+    return this.ratings.myRating('event', eventId, actor.id);
+  }
+
+  @Put('events/:eventId/rating')
+  @ApiOperation({ summary: 'Rate an event 1-5 stars, with an optional private note (admin-only, never shown publicly). Upserts.' })
+  rateEvent(@Param('eventId') eventId: string, @Body() dto: CreateRatingDto, @CurrentUser() actor: AuthUser) {
+    return this.ratings.upsert('event', eventId, actor.id, dto);
+  }
+
+  @Get('course-offerings/:offeringId/rating')
+  @ApiOperation({ summary: 'Get my own rating for a course offering, if I have rated it.' })
+  myOfferingRating(@Param('offeringId') offeringId: string, @CurrentUser() actor: AuthUser) {
+    return this.ratings.myRating('offering', offeringId, actor.id);
+  }
+
+  @Put('course-offerings/:offeringId/rating')
+  @ApiOperation({ summary: 'Rate a course offering 1-5 stars, with an optional private note (admin-only, never shown publicly). Upserts.' })
+  rateOffering(@Param('offeringId') offeringId: string, @Body() dto: CreateRatingDto, @CurrentUser() actor: AuthUser) {
+    return this.ratings.upsert('offering', offeringId, actor.id, dto);
   }
 
   @Get('certificates')

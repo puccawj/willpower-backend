@@ -9,6 +9,7 @@ import { EventsModule } from '../events/events.module';
 import { CoursesModule } from '../courses/courses.module';
 import { DonationsModule } from '../donations/donations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { RatingsModule } from '../ratings/ratings.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
 
@@ -19,6 +20,7 @@ import { MeService } from './me.service';
     CoursesModule,
     DonationsModule,
     NotificationsModule,
+    RatingsModule,
   ],
   controllers: [MeController],
   providers: [MeService],

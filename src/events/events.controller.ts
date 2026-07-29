@@ -4,6 +4,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthUser } from '../auth/jwt.strategy';
+import { RatingsService } from '../ratings/ratings.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { Event } from './entities/event.entity';
@@ -16,7 +17,10 @@ import { EventsService } from './events.service';
 @Roles('superadmin', 'admin')
 @Controller('events')
 export class EventsController {
-  constructor(private readonly events: EventsService) {}
+  constructor(
+    private readonly events: EventsService,
+    private readonly ratings: RatingsService,
+  ) {}
 
   @Get()
   @ApiOperation({ summary: 'List all active (non-deleted) events with computed RSVP/waitlist counts.' })
@@ -31,6 +35,12 @@ export class EventsController {
   @ApiNotFoundResponse({ description: 'Event not found.' })
   findOne(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
     return this.events.findOne(id, actor);
+  }
+
+  @Get(':id/ratings')
+  @ApiOperation({ summary: 'List every rating (stars + private note + who gave it) submitted for this event, newest first.' })
+  listRatings(@Param('id') id: string) {
+    return this.ratings.adminList('event', id);
   }
 
   @Post()
