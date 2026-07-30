@@ -5,6 +5,7 @@ import { BranchAccessModule } from '../common/branch-access.module';
 import { RatingsModule } from '../ratings/ratings.module';
 import { ClassAttendance } from './entities/class-attendance.entity';
 import { CourseEnrollment } from './entities/course-enrollment.entity';
+import { CoursePrerequisite } from './entities/course-prerequisite.entity';
 import { CourseNeed } from './entities/course-need.entity';
 import { CoursePhoto } from './entities/course-photo.entity';
 import { CourseOffering } from './entities/course-offering.entity';
@@ -32,6 +33,7 @@ import { PublicCoursesController } from './public-courses.controller';
       ClassAttendance,
       CourseNeed,
       CoursePhoto,
+      CoursePrerequisite,
       UserBranch,
     ]),
     BranchAccessModule,

@@ -2,6 +2,20 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-07-30 (2)
+
+- Added `course_prerequisites` table + `prerequisiteCourseIds` on course
+  create/update (admin) — a course can require completion of one or more
+  other courses before self-enrollment is allowed. Public course
+  list/detail now expose `prerequisiteTitles`. Self-service enrollment
+  (`/me/enrollments`) is blocked with a 400 until the member has a
+  `completed` enrollment in every prerequisite course; admin-driven
+  enrollment (`POST /course-offerings/:id/enrollments`) intentionally
+  bypasses the gate. Courses with no prerequisites enroll exactly as
+  before.
+- `GET /public/courses/offerings` (the offering-card listing used on Home
+  and the Courses page) now also carries `prerequisiteTitles` per row.
+
 ## 2026-07-30 (1)
 
 - Added `student_applications` table + endpoints: `POST/GET /me/student-application`

@@ -666,4 +666,18 @@ CREATE TABLE student_applications (
 CREATE INDEX idx_student_applications_user ON student_applications (user_id);
 CREATE INDEX idx_student_applications_status ON student_applications (status);
 
+-- ============================================================
+-- 24. course_prerequisites (course-to-course enrollment gating)
+-- ============================================================
+
+CREATE TABLE course_prerequisites (
+  course_id uuid NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  prerequisite_course_id uuid NOT NULL REFERENCES courses (id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (course_id, prerequisite_course_id),
+  CHECK (course_id <> prerequisite_course_id)
+);
+
+CREATE INDEX idx_course_prerequisites_prereq ON course_prerequisites (prerequisite_course_id);
+
 COMMIT;

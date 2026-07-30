@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsInt, IsNumber, IsOptional, IsString, Max, Min, MinLength } from 'class-validator';
+import { ArrayUnique, IsArray, IsIn, IsInt, IsNumber, IsOptional, IsString, IsUUID, Max, Min, MinLength } from 'class-validator';
 import type { CourseStatus } from '../entities/course.entity';
 
 const STATUSES: CourseStatus[] = ['active', 'inactive'];
@@ -46,4 +46,14 @@ export class CreateCourseDto {
   @IsOptional()
   @IsIn(STATUSES)
   status?: CourseStatus;
+
+  @ApiPropertyOptional({
+    type: [String],
+    description: 'Course UUIDs a student must have "completed" before self-enrolling in this course. Omit/empty for no prerequisite.',
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsUUID('4', { each: true })
+  prerequisiteCourseIds?: string[];
 }

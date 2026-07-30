@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as QRCode from 'qrcode';
@@ -75,13 +75,43 @@ export class EnrollmentService {
   }
 
   async enroll(offeringId: string, dto: EnrollDto, actor?: AuthUser): Promise<CourseEnrollment> {
-    await this.getOfferingOrThrow(offeringId, actor);
+    const offering = await this.getOfferingOrThrow(offeringId, actor);
 
     const existing = await this.enrollments.findOne({ where: { offeringId, userId: dto.userId } });
     if (existing) throw new ConflictException('This user is already enrolled in this offering.');
 
+    // Self-service enrollment (no actor) is gated on prerequisite courses; admin-driven
+    // enrollment (actor present, via the admin Enrollment page) bypasses the gate.
+    if (!actor) {
+      const missing = await this.missingPrerequisiteTitles(offering.courseId, dto.userId);
+      if (missing.length) {
+        throw new BadRequestException(
+          `You must complete ${missing.join(', ')} before enrolling in this course.`,
+        );
+      }
+    }
+
     const enrollment = this.enrollments.create({ offeringId, userId: dto.userId, status: 'enrolled' });
     return this.enrollments.save(enrollment);
+  }
+
+  /** Course titles the user has not yet completed among the target course's prerequisites. */
+  private async missingPrerequisiteTitles(courseId: string, userId: string): Promise<string[]> {
+    const rows = await this.enrollments.query(
+      `SELECT c.title
+       FROM course_prerequisites cp
+       JOIN courses c ON c.id = cp.prerequisite_course_id
+       WHERE cp.course_id = $1
+         AND NOT EXISTS (
+           SELECT 1 FROM course_enrollments ce
+           JOIN course_offerings co ON co.id = ce.offering_id
+           WHERE co.course_id = cp.prerequisite_course_id
+             AND ce.user_id = $2
+             AND ce.status = 'completed'
+         )`,
+      [courseId, userId],
+    );
+    return rows.map((r: { title: string }) => r.title);
   }
 
   async removeEnrollment(offeringId: string, userId: string, actor?: AuthUser): Promise<void> {

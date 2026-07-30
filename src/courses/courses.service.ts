@@ -1,12 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { UpdateCourseDto } from './dto/update-course.dto';
 import { Course } from './entities/course.entity';
+import { CoursePrerequisite } from './entities/course-prerequisite.entity';
 
 export interface CourseWithOfferingsCount extends Course {
   offeringsCount: number;
+  prerequisiteCourseIds: string[];
 }
 
 export interface PublicCourse {
@@ -20,6 +22,7 @@ export interface PublicCourse {
   offeringsCount: number;
   modes: ('online' | 'onsite')[];
   isOpenForEnrollment: boolean;
+  prerequisiteTitles: string[];
 }
 
 export interface PublicCourseDetail extends PublicCourse {
@@ -57,11 +60,15 @@ export interface PublicCourseOfferingCard {
   endDate: string;
   spotsLeft: number | null;
   scheduleSummary: PublicOfferingScheduleSlot[];
+  prerequisiteTitles: string[];
 }
 
 @Injectable()
 export class CoursesService {
-  constructor(@InjectRepository(Course) private readonly courses: Repository<Course>) {}
+  constructor(
+    @InjectRepository(Course) private readonly courses: Repository<Course>,
+    @InjectRepository(CoursePrerequisite) private readonly prerequisites: Repository<CoursePrerequisite>,
+  ) {}
 
   async findAll(): Promise<CourseWithOfferingsCount[]> {
     const rows = await this.courses.find({ order: { title: 'ASC' } });
@@ -88,7 +95,11 @@ export class CoursesService {
       createdBy: actorId,
       updatedBy: actorId,
     });
-    return this.courses.save(course);
+    const saved = await this.courses.save(course);
+    if (dto.prerequisiteCourseIds !== undefined) {
+      await this.setPrerequisites(saved.id, dto.prerequisiteCourseIds);
+    }
+    return saved;
   }
 
   async update(id: string, dto: UpdateCourseDto, actorId: string): Promise<Course> {
@@ -105,7 +116,30 @@ export class CoursesService {
     if (dto.status !== undefined) course.status = dto.status;
     course.updatedBy = actorId;
 
-    return this.courses.save(course);
+    const saved = await this.courses.save(course);
+    if (dto.prerequisiteCourseIds !== undefined) {
+      await this.setPrerequisites(id, dto.prerequisiteCourseIds);
+    }
+    return saved;
+  }
+
+  /** Replaces a course's full prerequisite set. A course can never be its own prerequisite. */
+  private async setPrerequisites(courseId: string, prerequisiteCourseIds: string[]): Promise<void> {
+    const ids = [...new Set(prerequisiteCourseIds)].filter((id) => id !== courseId);
+    if (ids.length) {
+      const found = await this.courses.find({ where: ids.map((id) => ({ id })) });
+      if (found.length !== ids.length) throw new BadRequestException('One or more prerequisite courses were not found.');
+    }
+
+    await this.prerequisites.delete({ courseId });
+    if (ids.length) {
+      await this.prerequisites.save(ids.map((prerequisiteCourseId) => this.prerequisites.create({ courseId, prerequisiteCourseId })));
+    }
+  }
+
+  async prerequisiteIdsFor(courseId: string): Promise<string[]> {
+    const rows = await this.prerequisites.find({ where: { courseId } });
+    return rows.map((r) => r.prerequisiteCourseId);
   }
 
   async softDelete(id: string): Promise<void> {
@@ -157,6 +191,8 @@ export class CoursesService {
       if (isOpen) openById.set(row.course_id, true);
     }
 
+    const prereqTitlesById = await this.prerequisiteTitlesFor(ids);
+
     return courses.map((c) => ({
       id: c.id,
       title: c.title,
@@ -168,7 +204,27 @@ export class CoursesService {
       offeringsCount: offeringsCountById.get(c.id) ?? 0,
       modes: [...(modesById.get(c.id) ?? [])] as ('online' | 'onsite')[],
       isOpenForEnrollment: openById.get(c.id) ?? false,
+      prerequisiteTitles: prereqTitlesById.get(c.id) ?? [],
     }));
+  }
+
+  /** Bulk-fetches human-readable prerequisite course titles for a set of courses. */
+  private async prerequisiteTitlesFor(courseIds: string[]): Promise<Map<string, string[]>> {
+    const map = new Map<string, string[]>();
+    if (!courseIds.length) return map;
+    const rows = await this.courses.query(
+      `SELECT cp.course_id, c.title
+       FROM course_prerequisites cp
+       JOIN courses c ON c.id = cp.prerequisite_course_id
+       WHERE cp.course_id = ANY($1)`,
+      [courseIds],
+    );
+    for (const row of rows) {
+      const list = map.get(row.course_id) ?? [];
+      list.push(row.title);
+      map.set(row.course_id, list);
+    }
+    return map;
   }
 
   async findOnePublic(id: string): Promise<PublicCourseDetail> {
@@ -207,6 +263,8 @@ export class CoursesService {
       if (isOpen) isOpenForEnrollment = true;
     }
 
+    const prereqTitlesById = await this.prerequisiteTitlesFor([id]);
+
     return {
       id: course.id,
       title: course.title,
@@ -219,6 +277,7 @@ export class CoursesService {
       offeringsCount: offeringRows.length,
       modes: [...modes] as ('online' | 'onsite')[],
       isOpenForEnrollment,
+      prerequisiteTitles: prereqTitlesById.get(id) ?? [],
     };
   }
 
@@ -325,8 +384,11 @@ export class CoursesService {
       [today],
     );
 
-    return rows
-      .filter((r: any) => r.capacity === null || Number(r.capacity) > Number(r.enrolled_count))
+    const open = rows.filter((r: any) => r.capacity === null || Number(r.capacity) > Number(r.enrolled_count));
+    const courseIds: string[] = Array.from(new Set(open.map((r: any) => r.course_id)));
+    const prereqTitlesById = await this.prerequisiteTitlesFor(courseIds);
+
+    return open
       .map((r: any) => ({
         courseId: r.course_id,
         offeringId: r.offering_id,
@@ -340,6 +402,7 @@ export class CoursesService {
         endDate: r.end_date,
         spotsLeft: r.capacity === null ? null : Number(r.capacity) - Number(r.enrolled_count),
         scheduleSummary: typeof r.schedule === 'string' ? JSON.parse(r.schedule) : r.schedule,
+        prerequisiteTitles: prereqTitlesById.get(r.course_id) ?? [],
       }));
   }
 
@@ -353,6 +416,18 @@ export class CoursesService {
     );
     const countMap = new Map<string, number>(counts.map((c: any) => [c.course_id, Number(c.count)]));
 
-    return rows.map((row) => ({ ...row, offeringsCount: countMap.get(row.id) ?? 0 }));
+    const prereqRows = await this.prerequisites.find({ where: ids.map((id) => ({ courseId: id })) });
+    const prereqMap = new Map<string, string[]>();
+    for (const row of prereqRows) {
+      const list = prereqMap.get(row.courseId) ?? [];
+      list.push(row.prerequisiteCourseId);
+      prereqMap.set(row.courseId, list);
+    }
+
+    return rows.map((row) => ({
+      ...row,
+      offeringsCount: countMap.get(row.id) ?? 0,
+      prerequisiteCourseIds: prereqMap.get(row.id) ?? [],
+    }));
   }
 }

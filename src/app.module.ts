@@ -15,6 +15,7 @@ import { ClassAttendance } from './courses/entities/class-attendance.entity';
 import { CourseEnrollment } from './courses/entities/course-enrollment.entity';
 import { CourseNeed } from './courses/entities/course-need.entity';
 import { CoursePhoto } from './courses/entities/course-photo.entity';
+import { CoursePrerequisite } from './courses/entities/course-prerequisite.entity';
 import { CourseOffering } from './courses/entities/course-offering.entity';
 import { CourseSession } from './courses/entities/course-session.entity';
 import { Course } from './courses/entities/course.entity';
@@ -76,6 +77,7 @@ import { UsersModule } from './users/users.module';
           CourseEnrollment,
           CourseNeed,
           CoursePhoto,
+          CoursePrerequisite,
           ClassAttendance,
           CertificateTemplate,
           Certificate,
