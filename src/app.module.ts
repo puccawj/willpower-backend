@@ -33,6 +33,8 @@ import { HomeBannersModule } from './home-banners/home-banners.module';
 import { MeModule } from './me/me.module';
 import { Rating } from './ratings/entities/rating.entity';
 import { RatingsModule } from './ratings/ratings.module';
+import { StudentApplication } from './student-applications/entities/student-application.entity';
+import { StudentApplicationsModule } from './student-applications/student-applications.module';
 import { Notification } from './notifications/entities/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
@@ -83,6 +85,7 @@ import { UsersModule } from './users/users.module';
           SiteContent,
           HomeBanner,
           Rating,
+          StudentApplication,
         ],
         synchronize: false,
       }),
@@ -101,6 +104,7 @@ import { UsersModule } from './users/users.module';
     SiteContentModule,
     HomeBannersModule,
     RatingsModule,
+    StudentApplicationsModule,
     MeModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

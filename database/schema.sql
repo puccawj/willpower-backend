@@ -642,4 +642,28 @@ CREATE TABLE ratings (
 
 CREATE INDEX idx_ratings_target ON ratings (target_type, target_id);
 
+-- ============================================================
+-- 23. student_applications (general -> student role upgrade requests)
+-- ============================================================
+
+CREATE TYPE student_application_status AS ENUM ('pending', 'approved', 'rejected');
+
+CREATE TABLE student_applications (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id uuid NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  email varchar(255) NOT NULL,
+  first_name varchar(100) NOT NULL,
+  last_name varchar(100) NOT NULL,
+  nickname varchar(100) NOT NULL,
+  phone varchar(30),
+  line_id varchar(100),
+  status student_application_status NOT NULL DEFAULT 'pending',
+  reviewed_by uuid REFERENCES users (id) ON DELETE SET NULL,
+  reviewed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX idx_student_applications_user ON student_applications (user_id);
+CREATE INDEX idx_student_applications_status ON student_applications (status);
+
 COMMIT;

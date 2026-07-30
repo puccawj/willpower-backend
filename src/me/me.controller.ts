@@ -7,6 +7,8 @@ import type { AuthUser } from '../auth/jwt.strategy';
 import { RegisterDeviceDto } from '../notifications/dto/register-device.dto';
 import { CreateRatingDto } from '../ratings/dto/create-rating.dto';
 import { RatingsService } from '../ratings/ratings.service';
+import { CreateStudentApplicationDto } from '../student-applications/dto/create-student-application.dto';
+import { StudentApplicationsService } from '../student-applications/student-applications.service';
 import { SelfDonateDto } from './dto/self-donate.dto';
 import { SelfEnrollDto } from './dto/self-enroll.dto';
 import { SetMyRsvpDto } from './dto/set-my-rsvp.dto';
@@ -19,6 +21,7 @@ export class MeController {
   constructor(
     private readonly me: MeService,
     private readonly ratings: RatingsService,
+    private readonly studentApplications: StudentApplicationsService,
   ) {}
 
   @Get()
@@ -95,6 +98,18 @@ export class MeController {
   @ApiOperation({ summary: 'Rate a course offering 1-5 stars, with an optional private note (admin-only, never shown publicly). Upserts.' })
   rateOffering(@Param('offeringId') offeringId: string, @Body() dto: CreateRatingDto, @CurrentUser() actor: AuthUser) {
     return this.ratings.upsert('offering', offeringId, actor.id, dto);
+  }
+
+  @Get('student-application')
+  @ApiOperation({ summary: 'Get my most recent "become a student" application, if I have submitted one.' })
+  myStudentApplication(@CurrentUser() actor: AuthUser) {
+    return this.studentApplications.myLatest(actor.id);
+  }
+
+  @Post('student-application')
+  @ApiOperation({ summary: 'Apply to become a student — requires an admin to approve before the role changes.' })
+  submitStudentApplication(@Body() dto: CreateStudentApplicationDto, @CurrentUser() actor: AuthUser) {
+    return this.studentApplications.submit(actor.id, dto);
   }
 
   @Get('certificates')

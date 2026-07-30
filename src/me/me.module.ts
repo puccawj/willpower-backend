@@ -10,6 +10,7 @@ import { CoursesModule } from '../courses/courses.module';
 import { DonationsModule } from '../donations/donations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { RatingsModule } from '../ratings/ratings.module';
+import { StudentApplicationsModule } from '../student-applications/student-applications.module';
 import { MeController } from './me.controller';
 import { MeService } from './me.service';
 
@@ -21,6 +22,7 @@ import { MeService } from './me.service';
     DonationsModule,
     NotificationsModule,
     RatingsModule,
+    StudentApplicationsModule,
   ],
   controllers: [MeController],
   providers: [MeService],

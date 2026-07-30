@@ -1,0 +1,55 @@
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+
+export type StudentApplicationStatus = 'pending' | 'approved' | 'rejected';
+
+@Entity({ name: 'student_applications' })
+export class StudentApplication {
+  @ApiProperty()
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @ApiProperty()
+  @Column({ name: 'user_id', type: 'uuid' })
+  userId: string;
+
+  @ApiProperty()
+  @Column({ type: 'varchar', length: 255 })
+  email: string;
+
+  @ApiProperty()
+  @Column({ name: 'first_name', type: 'varchar', length: 100 })
+  firstName: string;
+
+  @ApiProperty()
+  @Column({ name: 'last_name', type: 'varchar', length: 100 })
+  lastName: string;
+
+  @ApiProperty()
+  @Column({ name: 'nickname', type: 'varchar', length: 100 })
+  nickname: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'phone', type: 'varchar', length: 30, nullable: true })
+  phone: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'line_id', type: 'varchar', length: 100, nullable: true })
+  lineId: string | null;
+
+  @ApiProperty({ enum: ['pending', 'approved', 'rejected'] })
+  @Column({ type: 'enum', enumName: 'student_application_status', enum: ['pending', 'approved', 'rejected'], default: 'pending' })
+  status: StudentApplicationStatus;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'reviewed_by', type: 'uuid', nullable: true })
+  reviewedBy: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'reviewed_at', type: 'timestamptz', nullable: true })
+  reviewedAt: Date | null;
+
+  @ApiProperty()
+  @CreateDateColumn({ name: 'created_at' })
+  createdAt: Date;
+}

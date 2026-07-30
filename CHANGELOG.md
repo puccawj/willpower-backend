@@ -2,6 +2,14 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-07-30 (1)
+
+- Added `student_applications` table + endpoints: `POST/GET /me/student-application`
+  (self-service — general accounts apply with email/name/nickname, optional
+  phone/LINE ID) and `GET /student-applications`, `PATCH
+  /student-applications/:id/approve|reject` (admin, roles-gated). Approving
+  flips the applicant's role from `general` to `student`.
+
 ## 2026-07-29 (5)
 
 - Added `GET /ratings/count` (admin, roles-gated) — total rating count
