@@ -5,12 +5,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { randomUUID } from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
+import { createRemoteJWKSet, jwtVerify } from 'jose';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { RegisterDto } from './dto/register.dto';
 
 const SALT_ROUNDS = 10;
 const REMEMBER_ME_EXPIRES_IN = '30d';
+const APPLE_JWKS = createRemoteJWKSet(new URL('https://appleid.apple.com/auth/keys'));
 
 export interface AuthResult {
   accessToken: string;
@@ -117,12 +119,32 @@ export class AuthService {
     return this.findOrCreateSsoUser(data.email, data.first_name ?? 'Member', data.last_name ?? '', allowCreate, 'facebook');
   }
 
+  /** Sign in with Apple — only used by the mobile app (App Store guideline 4.8 requires
+   * offering it whenever Google/Facebook sign-in is offered). `aud` on the identity
+   * token is the app's bundle ID for the native flow, not a web Services ID. */
+  async loginWithApple(idToken: string, fullName: string | undefined, allowCreate: boolean): Promise<AuthResult> {
+    const audience = this.config.get<string>('APPLE_BUNDLE_ID') ?? 'org.willpowerinstitute.app';
+
+    let email: unknown;
+    try {
+      const verified = await jwtVerify(idToken, APPLE_JWKS, { issuer: 'https://appleid.apple.com', audience });
+      email = verified.payload['email'];
+    } catch {
+      throw new UnauthorizedException('Invalid Apple sign-in token.');
+    }
+
+    if (typeof email !== 'string' || !email) throw new UnauthorizedException('Your Apple account has no verified email.');
+
+    const [firstName, lastName] = (fullName ?? '').trim().split(/\s+/, 2);
+    return this.findOrCreateSsoUser(email, firstName || 'Member', lastName ?? '', allowCreate, 'apple');
+  }
+
   private async findOrCreateSsoUser(
     email: string,
     firstName: string,
     lastName: string,
     allowCreate: boolean,
-    source: 'google' | 'facebook',
+    source: 'google' | 'facebook' | 'apple',
   ): Promise<AuthResult> {
     const normalized = email.toLowerCase().trim();
     let user = await this.users.findOne({ where: { email: normalized } });

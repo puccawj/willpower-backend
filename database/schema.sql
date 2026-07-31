@@ -23,7 +23,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto; -- gen_random_uuid()
 
 CREATE TYPE user_role AS ENUM ('superadmin', 'admin', 'instructor', 'student', 'general');
 CREATE TYPE user_status AS ENUM ('active', 'suspended', 'pending_verification');
-CREATE TYPE registration_source AS ENUM ('admin', 'self', 'google', 'facebook');
+CREATE TYPE registration_source AS ENUM ('admin', 'self', 'google', 'facebook', 'apple');
 CREATE TYPE branch_status AS ENUM ('active', 'inactive', 'deleted');
 CREATE TYPE event_status AS ENUM ('draft', 'published', 'closed');
 CREATE TYPE rsvp_status AS ENUM ('confirm', 'maybe', 'cancel');

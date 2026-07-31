@@ -2,6 +2,14 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-07-31 (1)
+
+- Added `POST /auth/apple` — Sign in with Apple, verified against Apple's
+  published JWKS (`aud` = the mobile app's bundle ID). Added for the
+  upcoming iOS app, which App Store guideline 4.8 requires whenever
+  Google/Facebook sign-in is offered. Added `'apple'` to the
+  `registration_source` enum.
+
 ## 2026-07-30 (2)
 
 - Added `course_prerequisites` table + `prerequisiteCourseIds` on course

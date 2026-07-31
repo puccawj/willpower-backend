@@ -3,7 +3,7 @@ import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedCol
 
 export type UserRole = 'superadmin' | 'admin' | 'instructor' | 'student' | 'general';
 export type UserStatus = 'active' | 'suspended' | 'pending_verification';
-export type RegistrationSource = 'admin' | 'self' | 'google' | 'facebook';
+export type RegistrationSource = 'admin' | 'self' | 'google' | 'facebook' | 'apple';
 
 @Entity({ name: 'users' })
 export class User {
