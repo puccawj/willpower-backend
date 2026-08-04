@@ -39,6 +39,7 @@ export interface PublicOffering {
   id: string;
   branchId: string;
   branchName: string;
+  branchCity: string | null;
   mode: 'online' | 'onsite';
   location: string | null;
   startDate: string;
@@ -55,6 +56,7 @@ export interface PublicCourseOfferingCard {
   imageUrl: string | null;
   branchId: string;
   branchName: string;
+  branchCity: string | null;
   mode: 'online' | 'onsite';
   startDate: string;
   endDate: string;
@@ -297,6 +299,7 @@ export class CoursesService {
         co.capacity,
         co.branch_id,
         b.name AS branch_name,
+        b.city AS branch_city,
         COALESCE(enrolled.count, 0) AS enrolled_count,
         COALESCE(sched.schedule, '[]') AS schedule
       FROM course_offerings co
@@ -330,6 +333,7 @@ export class CoursesService {
         id: r.id,
         branchId: r.branch_id,
         branchName: r.branch_name,
+        branchCity: r.branch_city,
         mode: r.mode,
         location: r.location,
         startDate: r.start_date,
@@ -356,6 +360,7 @@ export class CoursesService {
         co.capacity,
         co.branch_id,
         b.name AS branch_name,
+        b.city AS branch_city,
         COALESCE(enrolled.count, 0) AS enrolled_count,
         COALESCE(sched.schedule, '[]') AS schedule
       FROM course_offerings co
@@ -397,6 +402,7 @@ export class CoursesService {
         imageUrl: r.image_url,
         branchId: r.branch_id,
         branchName: r.branch_name,
+        branchCity: r.branch_city,
         mode: r.mode,
         startDate: r.start_date,
         endDate: r.end_date,
