@@ -25,7 +25,13 @@ async function bootstrap() {
   // so req.protocol reports "https" instead of the plain-HTTP hop to this process.
   app.set('trust proxy', 1);
   app.enableCors({
-    origin: (origin, callback) => callback(null, !origin || isAllowedOrigin(origin)),
+    origin: (origin, callback) => {
+      // TEMP DEBUG: diagnosing an iOS-only request failure (status 0, never reaches here
+      // per client logs) — logging every origin seen (allowed or not) to check whether iOS
+      // requests reach the server at all, and if so, what Origin they actually send.
+      console.log('[CORS DEBUG] origin:', origin, 'allowed:', !origin || isAllowedOrigin(origin));
+      callback(null, !origin || isAllowedOrigin(origin));
+    },
     credentials: true,
   });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
