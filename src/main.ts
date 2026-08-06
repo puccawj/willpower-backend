@@ -15,6 +15,12 @@ function isAllowedOrigin(origin: string): boolean {
     /^https?:\/\/(localhost|127\.0\.0\.1):\d+$/.test(origin) ||
     /^https:\/\/[a-z0-9-]+\.vercel\.app$/.test(origin) ||
     /^https:\/\/([a-z0-9-]+\.)?wpusa\.online$/.test(origin) ||
+    // The mobile app's `server.iosScheme: 'https'` config (meant to make the WebView's
+    // origin match the https:// pattern above, the same way `androidScheme` already does
+    // on Android) doesn't take effect in practice — iOS requests still arrive with the
+    // capacitor:// scheme Capacitor defaults to. Allowlisting it directly here sidesteps
+    // that rather than depending on a client-side fix that isn't working.
+    /^capacitor:\/\/([a-z0-9-]+\.)?wpusa\.online$/.test(origin) ||
     extraOrigins.includes(origin)
   );
 }
