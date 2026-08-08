@@ -9,9 +9,12 @@ import { CreateRatingDto } from '../ratings/dto/create-rating.dto';
 import { RatingsService } from '../ratings/ratings.service';
 import { CreateStudentApplicationDto } from '../student-applications/dto/create-student-application.dto';
 import { StudentApplicationsService } from '../student-applications/student-applications.service';
+import { UpdateStudentApplicationDto } from '../student-applications/dto/update-student-application.dto';
+import { ChangeMyPasswordDto } from './dto/change-my-password.dto';
 import { SelfDonateDto } from './dto/self-donate.dto';
 import { SelfEnrollDto } from './dto/self-enroll.dto';
 import { SetMyRsvpDto } from './dto/set-my-rsvp.dto';
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
 import { MeService } from './me.service';
 
 @ApiTags('me')
@@ -28,6 +31,19 @@ export class MeController {
   @ApiOperation({ summary: 'Get the current logged-in user profile.' })
   profile(@CurrentUser() actor: AuthUser) {
     return this.me.profile(actor.id);
+  }
+
+  @Patch()
+  @ApiOperation({ summary: 'Update my own name/nickname/phone.' })
+  updateProfile(@Body() dto: UpdateMyProfileDto, @CurrentUser() actor: AuthUser) {
+    return this.me.updateProfile(actor.id, dto);
+  }
+
+  @Patch('password')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Change my own password — only available for accounts created with email/password.' })
+  async changePassword(@Body() dto: ChangeMyPasswordDto, @CurrentUser() actor: AuthUser) {
+    await this.me.changePassword(actor.id, dto);
   }
 
   @Get('events')
@@ -110,6 +126,12 @@ export class MeController {
   @ApiOperation({ summary: 'Apply to become a student — requires an admin to approve before the role changes.' })
   submitStudentApplication(@Body() dto: CreateStudentApplicationDto, @CurrentUser() actor: AuthUser) {
     return this.studentApplications.submit(actor.id, dto);
+  }
+
+  @Patch('student-application')
+  @ApiOperation({ summary: 'Edit my "become a student" application — only while it is still pending review.' })
+  updateStudentApplication(@Body() dto: UpdateStudentApplicationDto, @CurrentUser() actor: AuthUser) {
+    return this.studentApplications.update(actor.id, dto);
   }
 
   @Get('certificates')

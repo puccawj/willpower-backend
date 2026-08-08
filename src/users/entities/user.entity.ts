@@ -27,6 +27,10 @@ export class User {
   @Column({ name: 'last_name', length: 100 })
   lastName: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  nickname: string | null;
+
   @ApiProperty()
   @Column({ length: 255 })
   email: string;

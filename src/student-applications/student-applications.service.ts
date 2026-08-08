@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { CreateStudentApplicationDto } from './dto/create-student-application.dto';
+import { UpdateStudentApplicationDto } from './dto/update-student-application.dto';
 import { StudentApplication } from './entities/student-application.entity';
 
 @Injectable()
@@ -37,6 +38,21 @@ export class StudentApplicationsService {
 
   async myLatest(userId: string): Promise<StudentApplication | null> {
     return this.applications.findOne({ where: { userId }, order: { createdAt: 'DESC' } });
+  }
+
+  async update(userId: string, dto: UpdateStudentApplicationDto): Promise<StudentApplication> {
+    const application = await this.myLatest(userId);
+    if (!application) throw new NotFoundException('No application found.');
+    if (application.status !== 'pending') {
+      throw new BadRequestException('Only a pending application can be edited — this one has already been reviewed.');
+    }
+
+    if (dto.firstName !== undefined) application.firstName = dto.firstName.trim();
+    if (dto.lastName !== undefined) application.lastName = dto.lastName.trim();
+    if (dto.nickname !== undefined) application.nickname = dto.nickname.trim();
+    if (dto.phone !== undefined) application.phone = dto.phone.trim() || null;
+    if (dto.lineId !== undefined) application.lineId = dto.lineId.trim() || null;
+    return this.applications.save(application);
   }
 
   findAll(status?: string): Promise<StudentApplication[]> {

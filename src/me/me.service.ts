@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { EventRsvp } from '../events/entities/event-rsvp.entity';
@@ -14,15 +15,25 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { DevicesService } from '../notifications/devices.service';
 import { Notification } from '../notifications/entities/notification.entity';
 import { RegisterDeviceDto } from '../notifications/dto/register-device.dto';
+import { ChangeMyPasswordDto } from './dto/change-my-password.dto';
 import { MyRsvpStatus } from './dto/set-my-rsvp.dto';
+import { UpdateMyProfileDto } from './dto/update-my-profile.dto';
+
+const SALT_ROUNDS = 10;
 
 export interface MyProfile {
   id: string;
   firstName: string;
   lastName: string;
+  nickname: string | null;
   email: string;
+  phoneCountryCode: string | null;
+  phoneNumber: string | null;
   role: string;
   initials: string;
+  /** Drives whether the mobile/public-site "change password" UI shows at all —
+   * only 'self' accounts have a password the user themselves ever set. */
+  registrationSource: string;
 }
 
 export interface MyEventRow {
@@ -116,13 +127,45 @@ export class MeService {
 
   async profile(userId: string): Promise<MyProfile> {
     const user = await this.users.findOneOrFail({ where: { id: userId } });
+    return this.toProfile(user);
+  }
+
+  async updateProfile(userId: string, dto: UpdateMyProfileDto): Promise<MyProfile> {
+    const user = await this.users.findOneOrFail({ where: { id: userId } });
+    if (dto.firstName !== undefined) user.firstName = dto.firstName.trim();
+    if (dto.lastName !== undefined) user.lastName = dto.lastName.trim();
+    if (dto.nickname !== undefined) user.nickname = dto.nickname.trim() || null;
+    if (dto.phoneCountryCode !== undefined) user.phoneCountryCode = dto.phoneCountryCode.trim() || null;
+    if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber.trim() || null;
+    await this.users.save(user);
+    return this.toProfile(user);
+  }
+
+  async changePassword(userId: string, dto: ChangeMyPasswordDto): Promise<void> {
+    const user = await this.users.findOneOrFail({ where: { id: userId } });
+    if (user.registrationSource !== 'self') {
+      throw new BadRequestException('Password changes are only available for accounts created with an email and password.');
+    }
+
+    const matches = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+    if (!matches) throw new UnauthorizedException('Current password is incorrect.');
+
+    user.passwordHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
+    await this.users.save(user);
+  }
+
+  private toProfile(user: User): MyProfile {
     return {
       id: user.id,
       firstName: user.firstName,
       lastName: user.lastName,
+      nickname: user.nickname,
       email: user.email,
+      phoneCountryCode: user.phoneCountryCode,
+      phoneNumber: user.phoneNumber,
       role: user.role,
       initials: `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase(),
+      registrationSource: user.registrationSource,
     };
   }
 
