@@ -34,4 +34,10 @@ export class UpdateStudentApplicationDto {
   @IsString()
   @MaxLength(100)
   lineId?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  photoUrl?: string;
 }

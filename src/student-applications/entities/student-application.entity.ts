@@ -37,6 +37,10 @@ export class StudentApplication {
   @Column({ name: 'line_id', type: 'varchar', length: 100, nullable: true })
   lineId: string | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'photo_url', type: 'varchar', length: 500, nullable: true })
+  photoUrl: string | null;
+
   @ApiProperty({ enum: ['pending', 'approved', 'rejected'] })
   @Column({ type: 'enum', enumName: 'student_application_status', enum: ['pending', 'approved', 'rejected'], default: 'pending' })
   status: StudentApplicationStatus;

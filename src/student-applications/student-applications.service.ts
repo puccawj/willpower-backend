@@ -31,6 +31,7 @@ export class StudentApplicationsService {
       nickname: dto.nickname,
       phone: dto.phone ?? null,
       lineId: dto.lineId ?? null,
+      photoUrl: dto.photoUrl ?? null,
       status: 'pending',
     });
     return this.applications.save(application);
@@ -52,6 +53,7 @@ export class StudentApplicationsService {
     if (dto.nickname !== undefined) application.nickname = dto.nickname.trim();
     if (dto.phone !== undefined) application.phone = dto.phone.trim() || null;
     if (dto.lineId !== undefined) application.lineId = dto.lineId.trim() || null;
+    if (dto.photoUrl !== undefined) application.photoUrl = dto.photoUrl.trim() || null;
     return this.applications.save(application);
   }
 
