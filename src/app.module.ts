@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AdhocUploadModule } from './adhoc-upload/adhoc-upload.module';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { BranchesModule } from './branches/branches.module';
@@ -92,6 +93,7 @@ import { UsersModule } from './users/users.module';
         synchronize: false,
       }),
     }),
+    AdhocUploadModule,
     AuthModule,
     BranchesModule,
     UploadsModule,
