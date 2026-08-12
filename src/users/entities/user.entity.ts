@@ -46,6 +46,14 @@ export class User {
   @Column({ name: 'phone_number', type: 'varchar', length: 30, nullable: true })
   phoneNumber: string | null;
 
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'line_id', type: 'varchar', length: 100, nullable: true })
+  lineId: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  @Column({ name: 'photo_url', type: 'varchar', length: 500, nullable: true })
+  photoUrl: string | null;
+
   @ApiProperty({ enum: ['active', 'suspended', 'pending_verification'] })
   @Column({ type: 'enum', enumName: 'user_status', enum: ['active', 'suspended', 'pending_verification'], default: 'pending_verification' })
   status: UserStatus;

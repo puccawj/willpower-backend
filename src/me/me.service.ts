@@ -29,6 +29,8 @@ export interface MyProfile {
   email: string;
   phoneCountryCode: string | null;
   phoneNumber: string | null;
+  lineId: string | null;
+  photoUrl: string | null;
   role: string;
   initials: string;
   /** Drives whether the mobile/public-site "change password" UI shows at all —
@@ -137,6 +139,8 @@ export class MeService {
     if (dto.nickname !== undefined) user.nickname = dto.nickname.trim() || null;
     if (dto.phoneCountryCode !== undefined) user.phoneCountryCode = dto.phoneCountryCode.trim() || null;
     if (dto.phoneNumber !== undefined) user.phoneNumber = dto.phoneNumber.trim() || null;
+    if (dto.lineId !== undefined) user.lineId = dto.lineId.trim() || null;
+    if (dto.photoUrl !== undefined) user.photoUrl = dto.photoUrl.trim() || null;
     await this.users.save(user);
     return this.toProfile(user);
   }
@@ -163,6 +167,8 @@ export class MeService {
       email: user.email,
       phoneCountryCode: user.phoneCountryCode,
       phoneNumber: user.phoneNumber,
+      lineId: user.lineId,
+      photoUrl: user.photoUrl,
       role: user.role,
       initials: `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase(),
       registrationSource: user.registrationSource,
