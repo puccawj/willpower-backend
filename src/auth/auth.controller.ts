@@ -6,7 +6,6 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { FacebookLoginDto } from './dto/facebook-login.dto';
-import { AppleLoginDto } from './dto/apple-login.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -47,14 +46,5 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Invalid Facebook access token.' })
   loginWithFacebook(@Body() dto: FacebookLoginDto) {
     return this.auth.loginWithFacebook(dto.accessToken, dto.allowCreate ?? false);
-  }
-
-  @Public()
-  @HttpCode(HttpStatus.OK)
-  @Post('apple')
-  @ApiOperation({ summary: 'Sign in (or create an account) via a verified Sign in with Apple identity token.' })
-  @ApiUnauthorizedResponse({ description: 'Invalid Apple sign-in token.' })
-  loginWithApple(@Body() dto: AppleLoginDto) {
-    return this.auth.loginWithApple(dto.idToken, dto.fullName, dto.allowCreate ?? false);
   }
 }
