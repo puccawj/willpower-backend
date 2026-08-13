@@ -1,10 +1,9 @@
-import { BadRequestException, Controller, Post, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Post, UploadedFile, UseInterceptors } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
-import type { Request } from 'express';
 import { randomUUID } from 'crypto';
-import { diskStorage } from 'multer';
-import { join } from 'path';
+import { memoryStorage } from 'multer';
+import { S3Service } from '../s3/s3.service';
 
 const ALLOWED_MIME_TYPES: Record<string, string> = {
   'image/png': '.png',
@@ -19,16 +18,15 @@ const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 @ApiBearerAuth('access-token')
 @Controller('uploads')
 export class UploadsController {
+  constructor(private readonly s3: S3Service) {}
+
   @Post()
   @ApiOperation({ summary: 'Upload an image file, returns its publicly accessible URL.' })
   @ApiConsumes('multipart/form-data')
   @ApiBody({ schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } } } })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: diskStorage({
-        destination: join(process.cwd(), 'uploads', 'branches'),
-        filename: (_req, file, cb) => cb(null, `${randomUUID()}${ALLOWED_MIME_TYPES[file.mimetype] ?? ''}`),
-      }),
+      storage: memoryStorage(),
       limits: { fileSize: MAX_FILE_SIZE_BYTES },
       fileFilter: (_req, file, cb) => {
         if (!ALLOWED_MIME_TYPES[file.mimetype]) {
@@ -39,12 +37,10 @@ export class UploadsController {
       },
     }),
   )
-  upload(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
+  async upload(@UploadedFile() file: Express.Multer.File) {
     if (!file) throw new BadRequestException('No file uploaded.');
-    // PUBLIC_URL should be set in production — trusting the incoming request's host/protocol
-    // breaks behind a reverse proxy (wrong scheme) and bakes in whatever host the uploader
-    // happened to hit the API through (e.g. localhost during local testing).
-    const baseUrl = process.env.PUBLIC_URL ?? `${req.protocol}://${req.get('host')}`;
-    return { url: `${baseUrl}/uploads/branches/${file.filename}` };
+    const key = `branches/${randomUUID()}${ALLOWED_MIME_TYPES[file.mimetype] ?? ''}`;
+    const url = await this.s3.uploadBuffer(key, file.buffer, file.mimetype);
+    return { url };
   }
 }

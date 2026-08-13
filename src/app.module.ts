@@ -40,6 +40,7 @@ import { StudentApplicationsModule } from './student-applications/student-applic
 import { Notification } from './notifications/entities/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ReportsModule } from './reports/reports.module';
+import { S3Module } from './s3/s3.module';
 import { SiteContent } from './site-content/entities/site-content.entity';
 import { SiteContentModule } from './site-content/site-content.module';
 import { TeamMembersModule } from './team-members/team-members.module';
@@ -96,6 +97,7 @@ import { UsersModule } from './users/users.module';
     AdhocUploadModule,
     AuthModule,
     BranchesModule,
+    S3Module,
     UploadsModule,
     UsersModule,
     EventsModule,
