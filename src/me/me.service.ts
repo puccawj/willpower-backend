@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
@@ -152,7 +152,7 @@ export class MeService {
     }
 
     const matches = await bcrypt.compare(dto.currentPassword, user.passwordHash);
-    if (!matches) throw new UnauthorizedException('Current password is incorrect.');
+    if (!matches) throw new BadRequestException('Current password is incorrect.');
 
     user.passwordHash = await bcrypt.hash(dto.newPassword, SALT_ROUNDS);
     await this.users.save(user);

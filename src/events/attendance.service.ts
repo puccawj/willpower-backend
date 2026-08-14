@@ -101,6 +101,11 @@ export class AttendanceService {
     const event = await this.getEventOrThrow(eventId);
     this.ensureRsvpOpen(event);
 
+    const checkedIn = await this.attendance.findOne({ where: { eventId, userId } });
+    if (checkedIn) {
+      throw new ConflictException('You already checked in to this event — your RSVP can no longer be changed.');
+    }
+
     const existing = await this.rsvps.findOne({ where: { eventId, userId } });
     if (existing) {
       await this.updateAttendeeStatus(eventId, userId, status);
@@ -138,6 +143,17 @@ export class AttendanceService {
       this.attendance.create({ eventId, userId, checkedInAt: new Date(), checkedInBy: actor.id, method: 'manual' }),
     );
     return { checkedIn: true };
+  }
+
+  async assertCanRate(eventId: string, userId: string): Promise<void> {
+    const event = await this.getEventOrThrow(eventId);
+    if (new Date() <= new Date(event.endAt)) {
+      throw new ConflictException('You can only rate an event after it has ended.');
+    }
+    const attended = await this.attendance.findOne({ where: { eventId, userId } });
+    if (!attended) {
+      throw new ConflictException('Only attendees who checked in can rate this event.');
+    }
   }
 
   async getEventCheckinQr(eventId: string, actor?: AuthUser): Promise<{ code: string; qrDataUrl: string }> {

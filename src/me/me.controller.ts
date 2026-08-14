@@ -5,6 +5,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { AuthUser } from '../auth/jwt.strategy';
 import { RegisterDeviceDto } from '../notifications/dto/register-device.dto';
+import { AttendanceService } from '../events/attendance.service';
 import { CreateRatingDto } from '../ratings/dto/create-rating.dto';
 import { RatingsService } from '../ratings/ratings.service';
 import { CreateStudentApplicationDto } from '../student-applications/dto/create-student-application.dto';
@@ -24,6 +25,7 @@ export class MeController {
   constructor(
     private readonly me: MeService,
     private readonly ratings: RatingsService,
+    private readonly attendance: AttendanceService,
     private readonly studentApplications: StudentApplicationsService,
   ) {}
 
@@ -99,8 +101,13 @@ export class MeController {
   }
 
   @Put('events/:eventId/rating')
-  @ApiOperation({ summary: 'Rate an event 1-5 stars, with an optional private note (admin-only, never shown publicly). Upserts.' })
-  rateEvent(@Param('eventId') eventId: string, @Body() dto: CreateRatingDto, @CurrentUser() actor: AuthUser) {
+  @ApiOperation({
+    summary:
+      'Rate an event 1-5 stars, with an optional private note (admin-only, never shown publicly). Upserts. ' +
+      'Only allowed after the event has ended, and only for attendees who checked in.',
+  })
+  async rateEvent(@Param('eventId') eventId: string, @Body() dto: CreateRatingDto, @CurrentUser() actor: AuthUser) {
+    await this.attendance.assertCanRate(eventId, actor.id);
     return this.ratings.upsert('event', eventId, actor.id, dto);
   }
 
