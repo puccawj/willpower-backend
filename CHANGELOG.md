@@ -2,6 +2,24 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-15 (1) — Course Offering redesign, phase 1 (backend)
+
+- **Sessions are no longer auto-generated on a fixed 7-day cadence.**
+  `POST /course-offerings` creates an offering with zero sessions; admins now
+  build the schedule by hand via new `POST`/`PATCH`/`DELETE
+  /course-offerings/:id/sessions[/:sessionId]` endpoints, with fully custom
+  per-session dates/times/topic/location.
+- Unified attendance %/pass-status calculation into one place
+  (`EnrollmentService.getCompletionStatus()`); certificate issuance now
+  calls it instead of independently recomputing, and also writes
+  `completed`/`failed` onto the enrollment once the offering ends (was
+  never written before).
+- Prerequisite courses are now enforced on **every** enrollment path,
+  including admin-driven enrollment (previously silently bypassed) —
+  admins can explicitly override via a `force` flag.
+- Student-facing enrollment rows (`/me/enrollments`) now include
+  `passingPercent`/`isPassing`.
+
 ## 2026-07-31 (1)
 
 - Added `POST /auth/apple` — Sign in with Apple, verified against Apple's
