@@ -7,6 +7,8 @@ import type { AuthUser } from '../auth/jwt.strategy';
 import { RatingsService } from '../ratings/ratings.service';
 import { CreateOfferingDto } from './dto/create-offering.dto';
 import { UpdateOfferingDto } from './dto/update-offering.dto';
+import { CreateSessionDto } from './dto/create-session.dto';
+import { UpdateSessionDto } from './dto/update-session.dto';
 import { CourseOffering } from './entities/course-offering.entity';
 import { OfferingsService } from './offerings.service';
 
@@ -38,9 +40,37 @@ export class OfferingsController {
   }
 
   @Get(':id/sessions')
-  @ApiOperation({ summary: 'List the auto-generated session calendar for an offering.' })
+  @ApiOperation({ summary: 'List the sessions the admin has built for this offering.' })
   listSessions(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
     return this.offerings.listSessions(id, actor);
+  }
+
+  @Post(':id/sessions')
+  @Roles('superadmin', 'admin')
+  @ApiOperation({ summary: "Add a session (class meeting) to this offering's schedule, with an explicit date/time." })
+  addSession(@Param('id') id: string, @Body() dto: CreateSessionDto, @CurrentUser() actor: AuthUser) {
+    return this.offerings.addSession(id, dto, actor);
+  }
+
+  @Patch(':id/sessions/:sessionId')
+  @Roles('superadmin', 'admin')
+  @ApiOperation({ summary: "Edit a session's date/time/topic/location — e.g. for a reschedule." })
+  updateSession(
+    @Param('id') id: string,
+    @Param('sessionId') sessionId: string,
+    @Body() dto: UpdateSessionDto,
+    @CurrentUser() actor: AuthUser,
+  ) {
+    return this.offerings.updateSession(id, sessionId, dto, actor);
+  }
+
+  @Delete(':id/sessions/:sessionId')
+  @Roles('superadmin', 'admin')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remove a session — e.g. for a cancelled holiday class.' })
+  @ApiNoContentResponse()
+  async removeSession(@Param('id') id: string, @Param('sessionId') sessionId: string, @CurrentUser() actor: AuthUser) {
+    await this.offerings.removeSession(id, sessionId, actor);
   }
 
   @Get(':id/ratings')
@@ -51,7 +81,7 @@ export class OfferingsController {
 
   @Post()
   @Roles('superadmin', 'admin')
-  @ApiOperation({ summary: 'Create a new course offering. Sessions are auto-generated weekly from the start date.' })
+  @ApiOperation({ summary: 'Create a new course offering. Sessions are added separately via POST :id/sessions.' })
   @ApiOkResponse({ type: CourseOffering })
   create(@Body() dto: CreateOfferingDto, @CurrentUser() actor: AuthUser) {
     return this.offerings.create(dto, actor);

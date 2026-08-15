@@ -8,6 +8,8 @@ import { CourseOffering } from './entities/course-offering.entity';
 import { Course } from './entities/course.entity';
 import { CreateOfferingDto } from './dto/create-offering.dto';
 import { UpdateOfferingDto } from './dto/update-offering.dto';
+import { CreateSessionDto } from './dto/create-session.dto';
+import { UpdateSessionDto } from './dto/update-session.dto';
 
 export interface OfferingWithDetails extends CourseOffering {
   courseTitle: string;
@@ -16,9 +18,6 @@ export interface OfferingWithDetails extends CourseOffering {
   instructorName: string | null;
   enrolledCount: number;
 }
-
-const DEFAULT_START_TIME = '18:00:00';
-const DEFAULT_END_TIME = '20:00:00';
 
 @Injectable()
 export class OfferingsService {
@@ -78,10 +77,10 @@ export class OfferingsService {
       createdBy: actor.id,
       updatedBy: actor.id,
     });
-    const saved = await this.offerings.save(offering);
-
-    await this.generateSessions(saved.id, dto.startDate, course.totalSessions, actor.id);
-    return saved;
+    // Sessions are no longer auto-generated on a fixed cadence — the admin builds the
+    // Sessions list by hand afterward (add/edit/remove), since real class schedules rarely
+    // land on a neat weekly interval.
+    return this.offerings.save(offering);
   }
 
   async update(id: string, dto: UpdateOfferingDto, actor: AuthUser): Promise<CourseOffering> {
@@ -133,34 +132,73 @@ export class OfferingsService {
     return this.sessions.find({ where: { offeringId }, order: { sessionNo: 'ASC' } });
   }
 
+  async addSession(offeringId: string, dto: CreateSessionDto, actor: AuthUser): Promise<CourseSession> {
+    await this.assertOfferingAccess(offeringId, actor);
+
+    let sessionNo = dto.sessionNo;
+    if (sessionNo === undefined) {
+      const raw = await this.sessions
+        .createQueryBuilder('s')
+        .select('MAX(s.session_no)', 'max')
+        .where('s.offering_id = :offeringId', { offeringId })
+        .getRawOne<{ max: number | null }>();
+      sessionNo = (raw?.max ?? 0) + 1;
+    }
+
+    const session = this.sessions.create({
+      offeringId,
+      sessionNo,
+      sessionDate: dto.sessionDate,
+      startTime: dto.startTime,
+      endTime: dto.endTime,
+      topic: dto.topic ?? null,
+      location: dto.location ?? null,
+      createdBy: actor.id,
+      updatedBy: actor.id,
+    });
+    return this.sessions.save(session);
+  }
+
+  async updateSession(offeringId: string, sessionId: string, dto: UpdateSessionDto, actor: AuthUser): Promise<CourseSession> {
+    await this.assertOfferingAccess(offeringId, actor);
+    const session = await this.sessions.findOne({ where: { id: sessionId, offeringId } });
+    if (!session) throw new NotFoundException('Session not found.');
+
+    if (dto.sessionDate !== undefined) session.sessionDate = dto.sessionDate;
+    if (dto.startTime !== undefined) session.startTime = dto.startTime;
+    if (dto.endTime !== undefined) session.endTime = dto.endTime;
+    if (dto.topic !== undefined) session.topic = dto.topic ?? null;
+    if (dto.location !== undefined) session.location = dto.location ?? null;
+    if (dto.sessionNo !== undefined) session.sessionNo = dto.sessionNo;
+    session.updatedBy = actor.id;
+
+    return this.sessions.save(session);
+  }
+
+  async removeSession(offeringId: string, sessionId: string, actor: AuthUser): Promise<void> {
+    await this.assertOfferingAccess(offeringId, actor);
+    const session = await this.sessions.findOne({ where: { id: sessionId, offeringId } });
+    if (!session) throw new NotFoundException('Session not found.');
+    // Deleting a session also drops any attendance recorded against it — acceptable for the
+    // holiday/reschedule/mis-entry cases this is meant for; renumbering the rest is intentionally
+    // left alone so a removed session doesn't shuffle every later session's number.
+    await this.sessions.delete({ id: sessionId, offeringId });
+  }
+
+  private async assertOfferingAccess(offeringId: string, actor: AuthUser): Promise<CourseOffering> {
+    const offering = await this.offerings.findOne({ where: { id: offeringId } });
+    if (!offering) throw new NotFoundException('Offering not found.');
+    if (actor.role !== 'superadmin') {
+      const actorBranchIds = await this.branchIdsOf(actor.id);
+      if (!actorBranchIds.has(offering.branchId)) throw new NotFoundException('Offering not found.');
+    }
+    return offering;
+  }
+
   private ensureEndAfterStart(startDate: string, endDate: string): void {
     if (new Date(endDate) < new Date(startDate)) {
       throw new BadRequestException('End date must be on or after the start date.');
     }
-  }
-
-  private async generateSessions(offeringId: string, startDate: string, totalSessions: number, actorId: string): Promise<void> {
-    const rows: CourseSession[] = [];
-    const start = new Date(`${startDate}T00:00:00Z`);
-
-    for (let i = 0; i < totalSessions; i++) {
-      const sessionDate = new Date(start);
-      sessionDate.setUTCDate(sessionDate.getUTCDate() + i * 7);
-
-      rows.push(
-        this.sessions.create({
-          offeringId,
-          sessionNo: i + 1,
-          sessionDate: sessionDate.toISOString().slice(0, 10),
-          startTime: DEFAULT_START_TIME,
-          endTime: DEFAULT_END_TIME,
-          createdBy: actorId,
-          updatedBy: actorId,
-        }),
-      );
-    }
-
-    await this.sessions.save(rows);
   }
 
   private async branchIdsOf(userId: string): Promise<Set<string>> {

@@ -3,9 +3,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
 import type { AuthUser } from '../auth/jwt.strategy';
 import { BranchAccessService } from '../common/branch-access.service';
+import { EnrollmentService } from '../courses/enrollment.service';
 import { CourseEnrollment } from '../courses/entities/course-enrollment.entity';
 import { CourseOffering } from '../courses/entities/course-offering.entity';
-import { Course } from '../courses/entities/course.entity';
 import { CertificateNumberingService } from './certificate-numbering.service';
 import { IssueCertificateDto } from './dto/issue-certificate.dto';
 import { Certificate } from './entities/certificate.entity';
@@ -23,11 +23,11 @@ export class CertificatesService {
   constructor(
     @InjectRepository(Certificate) private readonly certificates: Repository<Certificate>,
     @InjectRepository(CourseOffering) private readonly offerings: Repository<CourseOffering>,
-    @InjectRepository(Course) private readonly courses: Repository<Course>,
     @InjectRepository(CourseEnrollment) private readonly enrollments: Repository<CourseEnrollment>,
     private readonly templatesService: TemplatesService,
     private readonly numbering: CertificateNumberingService,
     private readonly branchAccess: BranchAccessService,
+    private readonly enrollmentService: EnrollmentService,
   ) {}
 
   reserveNextNumber(): Promise<string> {
@@ -94,21 +94,16 @@ export class CertificatesService {
     });
     if (existing) throw new ConflictException('A certificate has already been issued for this student.');
 
-    const course = await this.courses.findOne({ where: { id: offering.courseId } });
-    if (!course) throw new NotFoundException('Course not found.');
-
-    const [{ attended_sessions }] = await this.certificates.query(
-      `SELECT COUNT(*) AS attended_sessions FROM class_attendance ca
-        JOIN course_sessions cs ON cs.id = ca.session_id
-       WHERE cs.offering_id = $1 AND ca.user_id = $2`,
-      [dto.offeringId, dto.userId],
+    // Single source of truth for attendance %/pass status — this also writes
+    // completed/failed onto the enrollment once the offering has ended.
+    const { attendancePercent, passingPercent, isPassing } = await this.enrollmentService.finalizeCompletion(
+      dto.offeringId,
+      dto.userId,
     );
-    const attendancePercent =
-      course.totalSessions > 0 ? Math.round((Number(attended_sessions) / course.totalSessions) * 10000) / 100 : 0;
 
-    if (attendancePercent < Number(course.passingAttendancePercent)) {
+    if (!isPassing) {
       throw new ConflictException(
-        `Student has ${attendancePercent}% attendance, below the ${course.passingAttendancePercent}% required to pass.`,
+        `Student has ${attendancePercent}% attendance, below the ${passingPercent}% required to pass.`,
       );
     }
 

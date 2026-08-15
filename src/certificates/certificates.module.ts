@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BranchAccessModule } from '../common/branch-access.module';
+import { CoursesModule } from '../courses/courses.module';
 import { CourseEnrollment } from '../courses/entities/course-enrollment.entity';
 import { CourseOffering } from '../courses/entities/course-offering.entity';
-import { Course } from '../courses/entities/course.entity';
 import { CertificatesController } from './certificates.controller';
 import { CertificatesService } from './certificates.service';
 import { CertificateNumberCounter } from './entities/certificate-number-counter.entity';
@@ -22,10 +22,10 @@ import { TemplatesService } from './templates.service';
       Certificate,
       CertificateNumberCounter,
       CourseOffering,
-      Course,
       CourseEnrollment,
     ]),
     BranchAccessModule,
+    CoursesModule,
   ],
   controllers: [TemplatesController, CertificatesController, RegistryController],
   providers: [TemplatesService, CertificatesService, CertificateNumberingService, RegistryService],

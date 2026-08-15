@@ -62,10 +62,12 @@ export interface MyEnrollmentRow {
   sessionsAttended: number;
   attendancePercent: number;
   passingPercent: number;
+  isPassing: boolean;
 }
 
 export interface MyCertificateRow {
   id: string;
+  offeringId: string | null;
   courseTitle: string | null;
   templateName: string;
   certificateNo: string;
@@ -214,12 +216,7 @@ export class MeService {
          c.title AS "courseTitle",
          c.category,
          b.name AS "branchName",
-         ce.status,
-         c.total_sessions AS "sessionsTotal",
-         COALESCE((SELECT COUNT(*) FROM class_attendance ca
-                    JOIN course_sessions cs ON cs.id = ca.session_id
-                    WHERE cs.offering_id = co.id AND ca.user_id = ce.user_id), 0) AS "sessionsAttended",
-         c.passing_attendance_percent AS "passingPercent"
+         ce.status
        FROM course_enrollments ce
        JOIN course_offerings co ON co.id = ce.offering_id
        JOIN courses c ON c.id = co.course_id
@@ -229,21 +226,25 @@ export class MeService {
       [userId],
     );
 
-    return rows.map((r: any) => {
-      const sessionsAttended = Number(r.sessionsAttended);
-      const sessionsTotal = Number(r.sessionsTotal);
-      return {
-        offeringId: r.offeringId,
-        courseTitle: r.courseTitle,
-        category: r.category,
-        branchName: r.branchName,
-        status: r.status,
-        sessionsTotal,
-        sessionsAttended,
-        attendancePercent: sessionsTotal > 0 ? Math.round((sessionsAttended / sessionsTotal) * 100) : 0,
-        passingPercent: Number(r.passingPercent),
-      };
-    });
+    // Reuse EnrollmentService.getCompletionStatus() as the single source of truth for
+    // attendance %/passing status — do not recompute independently here.
+    return Promise.all(
+      rows.map(async (r: any) => {
+        const completion = await this.enrollment.getCompletionStatus(r.offeringId, userId);
+        return {
+          offeringId: r.offeringId,
+          courseTitle: r.courseTitle,
+          category: r.category,
+          branchName: r.branchName,
+          status: r.status,
+          sessionsTotal: completion.totalSessions,
+          sessionsAttended: completion.attendedSessions,
+          attendancePercent: completion.attendancePercent,
+          passingPercent: completion.passingPercent,
+          isPassing: completion.isPassing,
+        };
+      }),
+    );
   }
 
   async enrollSelf(userId: string, offeringId: string): Promise<CourseEnrollment> {
@@ -266,6 +267,7 @@ export class MeService {
     return this.certificates.query(
       `SELECT
          cert.id,
+         cert.offering_id AS "offeringId",
          c.title AS "courseTitle",
          t.name AS "templateName",
          cert.certificate_no AS "certificateNo",
