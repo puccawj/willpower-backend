@@ -187,7 +187,7 @@ export class CoursesService {
       modesById.get(row.course_id)!.add(row.mode);
 
       const isOpen =
-        ['scheduled', 'ongoing'].includes(row.status) &&
+        row.status === 'published' &&
         row.end_date >= today &&
         (row.capacity === null || Number(row.capacity) > Number(row.enrolled_count));
       if (isOpen) openById.set(row.course_id, true);
@@ -259,7 +259,7 @@ export class CoursesService {
     for (const row of offeringRows) {
       modes.add(row.mode);
       const isOpen =
-        ['scheduled', 'ongoing'].includes(row.status) &&
+        row.status === 'published' &&
         row.end_date >= today &&
         (row.capacity === null || Number(row.capacity) > Number(row.enrolled_count));
       if (isOpen) isOpenForEnrollment = true;
@@ -321,7 +321,7 @@ export class CoursesService {
         GROUP BY offering_id
       ) sched ON sched.offering_id = co.id
       WHERE co.course_id = $1 AND co.deleted_at IS NULL
-        AND co.status IN ('scheduled','ongoing') AND co.end_date >= $2
+        AND co.status = 'published' AND co.end_date >= $2
       ORDER BY co.start_date ASC
       `,
       [courseId, today],
@@ -383,7 +383,7 @@ export class CoursesService {
         GROUP BY offering_id
       ) sched ON sched.offering_id = co.id
       WHERE co.deleted_at IS NULL
-        AND co.status IN ('scheduled','ongoing') AND co.end_date >= $1
+        AND co.status = 'published' AND co.end_date >= $1
       ORDER BY co.start_date ASC
       `,
       [today],

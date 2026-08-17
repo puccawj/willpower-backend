@@ -26,7 +26,7 @@ export class ReportsService {
 
     const [{ count: activeOfferings }] = await this.offerings.query(
       `SELECT COUNT(*)::int AS count FROM course_offerings
-        WHERE deleted_at IS NULL AND status IN ('scheduled','ongoing')
+        WHERE deleted_at IS NULL AND status = 'published'
           AND ($1::uuid[] IS NULL OR branch_id = ANY($1))`,
       [branchIds],
     );

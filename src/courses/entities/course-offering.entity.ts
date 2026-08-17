@@ -2,10 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Column, CreateDateColumn, DeleteDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
 export type OfferingMode = 'online' | 'onsite';
-export type OfferingStatus = 'draft' | 'scheduled' | 'ongoing' | 'completed' | 'cancelled';
+export type OfferingStatus = 'draft' | 'published' | 'completed' | 'cancelled';
 
 const MODES: OfferingMode[] = ['online', 'onsite'];
-const STATUSES: OfferingStatus[] = ['draft', 'scheduled', 'ongoing', 'completed', 'cancelled'];
+const STATUSES: OfferingStatus[] = ['draft', 'published', 'completed', 'cancelled'];
 
 @Entity({ name: 'course_offerings' })
 export class CourseOffering {

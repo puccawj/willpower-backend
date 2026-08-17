@@ -3,7 +3,7 @@ import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'cl
 import type { OfferingMode, OfferingStatus } from '../entities/course-offering.entity';
 
 const MODES: OfferingMode[] = ['online', 'onsite'];
-const STATUSES: OfferingStatus[] = ['draft', 'scheduled', 'ongoing', 'completed', 'cancelled'];
+const STATUSES: OfferingStatus[] = ['draft', 'published', 'completed', 'cancelled'];
 
 export class CreateOfferingDto {
   @ApiProperty({ description: 'Course UUID this offering runs.' })
