@@ -13,6 +13,7 @@ import { UpdateSessionDto } from './dto/update-session.dto';
 
 export interface OfferingWithDetails extends CourseOffering {
   courseTitle: string;
+  courseStatus: 'active' | 'inactive';
   totalSessions: number;
   branchName: string;
   instructorName: string | null;
@@ -217,7 +218,7 @@ export class OfferingsService {
     const offeringIds = rows.map((r) => r.id);
 
     const courseRows = await this.offerings.query(
-      `SELECT id, title, total_sessions FROM courses WHERE id = ANY($1)`,
+      `SELECT id, title, total_sessions, status FROM courses WHERE id = ANY($1)`,
       [courseIds],
     );
     const branchRows = await this.offerings.query(`SELECT id, name FROM branches WHERE id = ANY($1)`, [branchIds]);
@@ -232,7 +233,7 @@ export class OfferingsService {
       [offeringIds],
     );
 
-    const courseById = new Map<string, { title: string; total_sessions: number }>(
+    const courseById = new Map<string, { title: string; total_sessions: number; status: 'active' | 'inactive' }>(
       courseRows.map((c: any) => [c.id, c]),
     );
     const branchNameById = new Map<string, string>(branchRows.map((b: any) => [b.id, b.name]));
@@ -244,6 +245,7 @@ export class OfferingsService {
     return rows.map((row) => ({
       ...row,
       courseTitle: courseById.get(row.courseId)?.title ?? '—',
+      courseStatus: courseById.get(row.courseId)?.status ?? 'active',
       totalSessions: courseById.get(row.courseId)?.total_sessions ?? 0,
       branchName: branchNameById.get(row.branchId) ?? '—',
       instructorName: row.instructorId ? instructorNameById.get(row.instructorId) ?? '—' : null,
