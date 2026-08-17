@@ -96,6 +96,14 @@ export class EnrollmentService {
   async enroll(offeringId: string, dto: EnrollDto, actor?: AuthUser): Promise<CourseEnrollment> {
     const offering = await this.getOfferingOrThrow(offeringId, actor);
 
+    if (offering.status !== 'published') {
+      throw new ConflictException(
+        offering.status === 'completed'
+          ? 'This offering has already ended — enrollment is closed.'
+          : 'This offering is not open for enrollment yet.',
+      );
+    }
+
     const existing = await this.enrollments.findOne({ where: { offeringId, userId: dto.userId } });
     if (existing) {
       throw new ConflictException(
@@ -186,7 +194,10 @@ export class EnrollmentService {
   }
 
   async removeEnrollment(offeringId: string, userId: string, actor?: AuthUser): Promise<void> {
-    await this.getOfferingOrThrow(offeringId, actor);
+    const offering = await this.getOfferingOrThrow(offeringId, actor);
+    if (offering.status === 'completed') {
+      throw new ConflictException('This offering is completed — its roster can no longer be changed.');
+    }
     const enrollment = await this.enrollments.findOne({ where: { offeringId, userId } });
     if (!enrollment) throw new NotFoundException('Enrollment not found.');
     await this.enrollments.delete({ offeringId, userId });
@@ -195,7 +206,10 @@ export class EnrollmentService {
   async toggleAttendance(sessionId: string, userId: string, actorId: string, actor?: AuthUser): Promise<{ checkedIn: boolean }> {
     const session = await this.sessions.findOne({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Session not found.');
-    if (actor) await this.getOfferingOrThrow(session.offeringId, actor);
+    const offering = await this.getOfferingOrThrow(session.offeringId, actor);
+    if (offering.status === 'completed') {
+      throw new ConflictException('This offering is completed — attendance can no longer be changed.');
+    }
 
     const enrolled = await this.enrollments.findOne({ where: { offeringId: session.offeringId, userId } });
     if (!enrolled) throw new NotFoundException('This user is not enrolled in this offering.');
@@ -241,6 +255,11 @@ export class EnrollmentService {
   async selfCheckinSession(userId: string, sessionId: string): Promise<{ title: string; alreadyCheckedIn: boolean }> {
     const session = await this.sessions.findOne({ where: { id: sessionId } });
     if (!session) throw new NotFoundException('Session not found.');
+
+    const offering = await this.getOfferingOrThrow(session.offeringId);
+    if (offering.status === 'completed') {
+      throw new ConflictException('This offering is completed — check-in is closed.');
+    }
 
     const enrollment = await this.enrollments.findOne({ where: { offeringId: session.offeringId, userId } });
     if (!enrollment || enrollment.status !== 'enrolled') {

@@ -46,6 +46,9 @@ export interface PublicOffering {
   endDate: string;
   spotsLeft: number | null;
   scheduleSummary: PublicOfferingScheduleSlot[];
+  /** 'published' (open to enroll) or 'completed' (finished — shown for reference, not enrollable). */
+  status: 'published' | 'completed';
+  isOpenForEnrollment: boolean;
 }
 
 export interface PublicCourseOfferingCard {
@@ -63,6 +66,8 @@ export interface PublicCourseOfferingCard {
   spotsLeft: number | null;
   scheduleSummary: PublicOfferingScheduleSlot[];
   prerequisiteTitles: string[];
+  status: 'published' | 'completed';
+  isOpenForEnrollment: boolean;
 }
 
 @Injectable()
@@ -294,6 +299,7 @@ export class CoursesService {
         co.id,
         co.mode,
         co.location,
+        co.status,
         co.start_date::text AS start_date,
         co.end_date::text AS end_date,
         co.capacity,
@@ -321,14 +327,14 @@ export class CoursesService {
         GROUP BY offering_id
       ) sched ON sched.offering_id = co.id
       WHERE co.course_id = $1 AND co.deleted_at IS NULL
-        AND co.status = 'published' AND co.end_date >= $2
+        AND co.status IN ('published', 'completed')
       ORDER BY co.start_date ASC
       `,
-      [courseId, today],
+      [courseId],
     );
 
     return rows
-      .filter((r: any) => r.capacity === null || Number(r.capacity) > Number(r.enrolled_count))
+      .filter((r: any) => r.status === 'completed' || r.capacity === null || Number(r.capacity) > Number(r.enrolled_count))
       .map((r: any) => ({
         id: r.id,
         branchId: r.branch_id,
@@ -340,10 +346,15 @@ export class CoursesService {
         endDate: r.end_date,
         spotsLeft: r.capacity === null ? null : Number(r.capacity) - Number(r.enrolled_count),
         scheduleSummary: typeof r.schedule === 'string' ? JSON.parse(r.schedule) : r.schedule,
+        status: r.status,
+        isOpenForEnrollment:
+          r.status === 'published' &&
+          r.end_date >= today &&
+          (r.capacity === null || Number(r.capacity) > Number(r.enrolled_count)),
       }));
   }
 
-  /** One row per open offering across all active courses, each carrying its parent course's display fields. */
+  /** One row per visible offering (published or completed) across all active courses. */
   async findAllPublicOfferings(): Promise<PublicCourseOfferingCard[]> {
     const today = new Date().toISOString().slice(0, 10);
     const rows = await this.courses.query(
@@ -355,6 +366,7 @@ export class CoursesService {
         c.image_url,
         co.id AS offering_id,
         co.mode,
+        co.status,
         co.start_date::text AS start_date,
         co.end_date::text AS end_date,
         co.capacity,
@@ -383,17 +395,19 @@ export class CoursesService {
         GROUP BY offering_id
       ) sched ON sched.offering_id = co.id
       WHERE co.deleted_at IS NULL
-        AND co.status = 'published' AND co.end_date >= $1
+        AND co.status IN ('published', 'completed')
       ORDER BY co.start_date ASC
       `,
-      [today],
+      [],
     );
 
-    const open = rows.filter((r: any) => r.capacity === null || Number(r.capacity) > Number(r.enrolled_count));
-    const courseIds: string[] = Array.from(new Set(open.map((r: any) => r.course_id)));
+    const visible = rows.filter(
+      (r: any) => r.status === 'completed' || r.capacity === null || Number(r.capacity) > Number(r.enrolled_count),
+    );
+    const courseIds: string[] = Array.from(new Set(visible.map((r: any) => r.course_id)));
     const prereqTitlesById = await this.prerequisiteTitlesFor(courseIds);
 
-    return open
+    return visible
       .map((r: any) => ({
         courseId: r.course_id,
         offeringId: r.offering_id,
@@ -409,6 +423,11 @@ export class CoursesService {
         spotsLeft: r.capacity === null ? null : Number(r.capacity) - Number(r.enrolled_count),
         scheduleSummary: typeof r.schedule === 'string' ? JSON.parse(r.schedule) : r.schedule,
         prerequisiteTitles: prereqTitlesById.get(r.course_id) ?? [],
+        status: r.status,
+        isOpenForEnrollment:
+          r.status === 'published' &&
+          r.end_date >= today &&
+          (r.capacity === null || Number(r.capacity) > Number(r.enrolled_count)),
       }));
   }
 
