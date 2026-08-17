@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, Min } from 'class-validator';
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, IsUUID, MaxLength, Min } from 'class-validator';
 import type { OfferingMode, OfferingStatus } from '../entities/course-offering.entity';
 
 const MODES: OfferingMode[] = ['online', 'onsite'];
@@ -13,6 +13,15 @@ export class CreateOfferingDto {
   @ApiProperty({ description: 'Branch UUID hosting this offering.' })
   @IsUUID()
   branchId: string;
+
+  @ApiPropertyOptional({
+    description: 'Short code/nickname distinguishing this offering from other runs of the same course, e.g. "Morning Batch". Shown on the public site.',
+    maxLength: 60,
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  code?: string;
 
   @ApiPropertyOptional({ description: 'Instructor user UUID.' })
   @IsOptional()

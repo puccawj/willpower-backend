@@ -67,6 +67,7 @@ export class OfferingsService {
     const offering = this.offerings.create({
       courseId: dto.courseId,
       branchId: dto.branchId,
+      code: dto.code?.trim() || null,
       instructorId: dto.instructorId ?? null,
       startDate: dto.startDate,
       endDate: dto.endDate,
@@ -100,6 +101,7 @@ export class OfferingsService {
 
     if (dto.courseId !== undefined) offering.courseId = dto.courseId;
     if (dto.branchId !== undefined) offering.branchId = dto.branchId;
+    if (dto.code !== undefined) offering.code = dto.code?.trim() || null;
     if (dto.instructorId !== undefined) offering.instructorId = dto.instructorId ?? null;
     if (dto.startDate !== undefined) offering.startDate = dto.startDate;
     if (dto.endDate !== undefined) offering.endDate = dto.endDate;

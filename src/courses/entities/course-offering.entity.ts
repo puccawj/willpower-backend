@@ -17,6 +17,13 @@ export class CourseOffering {
   @Column({ name: 'course_id', type: 'uuid' })
   courseId: string;
 
+  @ApiPropertyOptional({
+    nullable: true,
+    description: 'Short code/nickname distinguishing this offering from other runs of the same course, e.g. "Morning Batch" or "B2026-09". Shown on the public site.',
+  })
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  code: string | null;
+
   @ApiProperty()
   @Column({ name: 'branch_id', type: 'uuid' })
   branchId: string;

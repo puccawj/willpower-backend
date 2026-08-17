@@ -37,6 +37,7 @@ export interface PublicOfferingScheduleSlot {
 
 export interface PublicOffering {
   id: string;
+  code: string | null;
   branchId: string;
   branchName: string;
   branchCity: string | null;
@@ -54,6 +55,7 @@ export interface PublicOffering {
 export interface PublicCourseOfferingCard {
   courseId: string;
   offeringId: string;
+  code: string | null;
   title: string;
   category: string | null;
   imageUrl: string | null;
@@ -297,6 +299,7 @@ export class CoursesService {
       `
       SELECT
         co.id,
+        co.code,
         co.mode,
         co.location,
         co.status,
@@ -337,6 +340,7 @@ export class CoursesService {
       .filter((r: any) => r.status === 'completed' || r.capacity === null || Number(r.capacity) > Number(r.enrolled_count))
       .map((r: any) => ({
         id: r.id,
+        code: r.code,
         branchId: r.branch_id,
         branchName: r.branch_name,
         branchCity: r.branch_city,
@@ -365,6 +369,7 @@ export class CoursesService {
         c.category,
         c.image_url,
         co.id AS offering_id,
+        co.code,
         co.mode,
         co.status,
         co.start_date::text AS start_date,
@@ -411,6 +416,7 @@ export class CoursesService {
       .map((r: any) => ({
         courseId: r.course_id,
         offeringId: r.offering_id,
+        code: r.code,
         title: r.title,
         category: r.category,
         imageUrl: r.image_url,
