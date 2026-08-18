@@ -2,6 +2,25 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-18 (3) — Course category becomes a managed list
+
+- Replaced `Course.category` (freeform text) with a `course_categories`
+  lookup table — `GET/POST /course-categories`, `PATCH/DELETE
+  /course-categories/:id` (admin), `GET /public/course-categories`
+  (active only, public). Course create/update now take `categoryId`
+  instead of a typed string; every response resolves it back to a
+  display name. Migration `2026-08-18-add-course-categories.sql`
+  backfills the 5 distinct category values already in the database.
+  Deleting a category in use by a course is blocked.
+
+## 2026-08-18 (2) — Auto-transition offering status to completed
+
+- Offerings now flip from `published` to `completed` automatically once
+  their end date passes (hourly `@nestjs/schedule` job, plus a sweep on
+  boot) — previously this only happened if an admin manually changed the
+  dropdown, so a stale `published` offering could stay open for
+  enrollment on the public site indefinitely.
+
 ## 2026-08-18 (1) — Full per-session attendance matrix on enrollments
 
 - `GET /course-offerings/:id/enrollments` now returns
