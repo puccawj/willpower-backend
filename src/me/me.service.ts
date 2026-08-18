@@ -214,12 +214,13 @@ export class MeService {
       `SELECT
          co.id AS "offeringId",
          c.title AS "courseTitle",
-         c.category,
+         cc.name AS category,
          b.name AS "branchName",
          ce.status
        FROM course_enrollments ce
        JOIN course_offerings co ON co.id = ce.offering_id
        JOIN courses c ON c.id = co.course_id
+       LEFT JOIN course_categories cc ON cc.id = c.category_id
        JOIN branches b ON b.id = co.branch_id
        WHERE ce.user_id = $1
        ORDER BY ce.enrolled_at DESC`,

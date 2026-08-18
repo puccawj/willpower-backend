@@ -7,6 +7,7 @@ import { Course } from './entities/course.entity';
 import { CoursePrerequisite } from './entities/course-prerequisite.entity';
 
 export interface CourseWithOfferingsCount extends Course {
+  categoryName: string | null;
   offeringsCount: number;
   prerequisiteCourseIds: string[];
 }
@@ -96,7 +97,7 @@ export class CoursesService {
       title: dto.title,
       description: dto.description ?? null,
       syllabus: dto.syllabus ?? null,
-      category: dto.category ?? null,
+      categoryId: dto.categoryId ?? null,
       imageUrl: dto.image ?? null,
       totalSessions: dto.totalSessions,
       passingAttendancePercent: String(dto.passingAttendancePercent ?? 80),
@@ -118,7 +119,7 @@ export class CoursesService {
     if (dto.title !== undefined) course.title = dto.title;
     if (dto.description !== undefined) course.description = dto.description ?? null;
     if (dto.syllabus !== undefined) course.syllabus = dto.syllabus ?? null;
-    if (dto.category !== undefined) course.category = dto.category ?? null;
+    if (dto.categoryId !== undefined) course.categoryId = dto.categoryId ?? null;
     if (dto.image !== undefined) course.imageUrl = dto.image ?? null;
     if (dto.totalSessions !== undefined) course.totalSessions = dto.totalSessions;
     if (dto.passingAttendancePercent !== undefined) course.passingAttendancePercent = String(dto.passingAttendancePercent);
@@ -201,12 +202,13 @@ export class CoursesService {
     }
 
     const prereqTitlesById = await this.prerequisiteTitlesFor(ids);
+    const categoryNameById = await this.categoryNamesFor(courses.map((c) => c.categoryId));
 
     return courses.map((c) => ({
       id: c.id,
       title: c.title,
       description: c.description,
-      category: c.category,
+      category: c.categoryId ? categoryNameById.get(c.categoryId) ?? null : null,
       imageUrl: c.imageUrl,
       totalSessions: c.totalSessions,
       passingAttendancePercent: Number(c.passingAttendancePercent),
@@ -215,6 +217,17 @@ export class CoursesService {
       isOpenForEnrollment: openById.get(c.id) ?? false,
       prerequisiteTitles: prereqTitlesById.get(c.id) ?? [],
     }));
+  }
+
+  /** Bulk-resolves category ids to display names for public responses (which show the category
+   * name, not its id). */
+  private async categoryNamesFor(categoryIds: (string | null)[]): Promise<Map<string, string>> {
+    const ids = [...new Set(categoryIds.filter((id): id is string => !!id))];
+    const map = new Map<string, string>();
+    if (!ids.length) return map;
+    const rows = await this.courses.query(`SELECT id, name FROM course_categories WHERE id = ANY($1)`, [ids]);
+    for (const row of rows) map.set(row.id, row.name);
+    return map;
   }
 
   /** Bulk-fetches human-readable prerequisite course titles for a set of courses. */
@@ -273,13 +286,14 @@ export class CoursesService {
     }
 
     const prereqTitlesById = await this.prerequisiteTitlesFor([id]);
+    const categoryNameById = await this.categoryNamesFor([course.categoryId]);
 
     return {
       id: course.id,
       title: course.title,
       description: course.description,
       syllabus: course.syllabus,
-      category: course.category,
+      category: course.categoryId ? categoryNameById.get(course.categoryId) ?? null : null,
       imageUrl: course.imageUrl,
       totalSessions: course.totalSessions,
       passingAttendancePercent: Number(course.passingAttendancePercent),
@@ -366,7 +380,7 @@ export class CoursesService {
       SELECT
         c.id AS course_id,
         c.title,
-        c.category,
+        cc.name AS category,
         c.image_url,
         co.id AS offering_id,
         co.code,
@@ -382,6 +396,7 @@ export class CoursesService {
         COALESCE(sched.schedule, '[]') AS schedule
       FROM course_offerings co
       JOIN courses c ON c.id = co.course_id AND c.status = 'active'
+      LEFT JOIN course_categories cc ON cc.id = c.category_id
       JOIN branches b ON b.id = co.branch_id
       LEFT JOIN (
         SELECT offering_id, COUNT(*) AS count
@@ -447,6 +462,13 @@ export class CoursesService {
     );
     const countMap = new Map<string, number>(counts.map((c: any) => [c.course_id, Number(c.count)]));
 
+    const categoryIds = [...new Set(rows.map((r) => r.categoryId).filter((id): id is string => !!id))];
+    const categoryNameById = new Map<string, string>();
+    if (categoryIds.length) {
+      const categoryRows = await this.courses.query(`SELECT id, name FROM course_categories WHERE id = ANY($1)`, [categoryIds]);
+      for (const row of categoryRows) categoryNameById.set(row.id, row.name);
+    }
+
     const prereqRows = await this.prerequisites.find({ where: ids.map((id) => ({ courseId: id })) });
     const prereqMap = new Map<string, string[]>();
     for (const row of prereqRows) {
@@ -457,6 +479,7 @@ export class CoursesService {
 
     return rows.map((row) => ({
       ...row,
+      categoryName: row.categoryId ? categoryNameById.get(row.categoryId) ?? null : null,
       offeringsCount: countMap.get(row.id) ?? 0,
       prerequisiteCourseIds: prereqMap.get(row.id) ?? [],
     }));

@@ -24,8 +24,8 @@ export class Course {
   syllabus: string | null;
 
   @ApiPropertyOptional({ nullable: true })
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  category: string | null;
+  @Column({ name: 'category_id', type: 'uuid', nullable: true })
+  categoryId: string | null;
 
   @ApiPropertyOptional({ nullable: true })
   @Column({ name: 'image_url', type: 'text', nullable: true })

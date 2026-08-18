@@ -20,10 +20,10 @@ export class CreateCourseDto {
   @IsString()
   syllabus?: string;
 
-  @ApiPropertyOptional({ example: 'Foundations' })
+  @ApiPropertyOptional({ description: 'Course category id — see GET /course-categories.' })
   @IsOptional()
-  @IsString()
-  category?: string;
+  @IsUUID('4')
+  categoryId?: string;
 
   @ApiPropertyOptional({ description: 'Cover image URL or base64 data URI.' })
   @IsOptional()
