@@ -11,6 +11,11 @@ import { CourseSession } from './entities/course-session.entity';
 import { Course } from './entities/course.entity';
 import { EnrollDto } from './dto/enroll.dto';
 
+export interface SessionAttendanceCell {
+  sessionId: string;
+  present: boolean;
+}
+
 export interface EnrollmentRow {
   userId: string;
   name: string;
@@ -23,6 +28,7 @@ export interface EnrollmentRow {
   passingPercent: number;
   isPassing: boolean;
   presentThisSession: boolean;
+  sessionAttendance: SessionAttendanceCell[];
 }
 
 export interface MySessionRow {
@@ -64,7 +70,14 @@ export class EnrollmentService {
               COALESCE((SELECT COUNT(*) FROM class_attendance ca
                          JOIN course_sessions cs ON cs.id = ca.session_id
                          WHERE cs.offering_id = $1 AND ca.user_id = ce.user_id), 0) AS attended_sessions,
-              ${sessionId ? `EXISTS(SELECT 1 FROM class_attendance ca2 WHERE ca2.session_id = $2 AND ca2.user_id = ce.user_id) AS present_this_session` : 'false AS present_this_session'}
+              ${sessionId ? `EXISTS(SELECT 1 FROM class_attendance ca2 WHERE ca2.session_id = $2 AND ca2.user_id = ce.user_id) AS present_this_session` : 'false AS present_this_session'},
+              COALESCE(
+                (SELECT JSON_AGG(json_build_object('sessionId', cs2.id, 'present', ca3.id IS NOT NULL) ORDER BY cs2.session_no)
+                   FROM course_sessions cs2
+                   LEFT JOIN class_attendance ca3 ON ca3.session_id = cs2.id AND ca3.user_id = ce.user_id
+                  WHERE cs2.offering_id = $1),
+                '[]'
+              ) AS session_attendance
          FROM course_enrollments ce
          JOIN users u ON u.id = ce.user_id
         WHERE ce.offering_id = $1
@@ -89,6 +102,7 @@ export class EnrollmentService {
         passingPercent,
         isPassing: attendancePercent >= passingPercent,
         presentThisSession: r.present_this_session,
+        sessionAttendance: r.session_attendance,
       };
     });
   }
