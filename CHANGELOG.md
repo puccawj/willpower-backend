@@ -2,6 +2,15 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-18 (1) — Full per-session attendance matrix on enrollments
+
+- `GET /course-offerings/:id/enrollments` now returns
+  `sessionAttendance: {sessionId, present}[]` per student (every session
+  of the offering, not just the one passed via `?sessionId=`) — powers
+  the admin panel's new attendance grid (one column per session) instead
+  of a session-by-session picker. No schema change; existing
+  `presentThisSession`/`attendedSessions` fields are unchanged.
+
 ## 2026-08-17 (1) — Course Offering redesign, phase 3 (backend)
 
 - Simplified offering `status` from a wider set down to
