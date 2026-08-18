@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AdhocUploadModule } from './adhoc-upload/adhoc-upload.module';
 import { AuthModule } from './auth/auth.module';
@@ -11,6 +12,8 @@ import { CertificatesModule } from './certificates/certificates.module';
 import { CertificateNumberCounter } from './certificates/entities/certificate-number-counter.entity';
 import { CertificateTemplate } from './certificates/entities/certificate-template.entity';
 import { Certificate } from './certificates/entities/certificate.entity';
+import { CourseCategoriesModule } from './course-categories/course-categories.module';
+import { CourseCategory } from './course-categories/entities/course-category.entity';
 import { CoursesModule } from './courses/courses.module';
 import { ClassAttendance } from './courses/entities/class-attendance.entity';
 import { CourseEnrollment } from './courses/entities/course-enrollment.entity';
@@ -54,6 +57,7 @@ import { UsersModule } from './users/users.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -74,6 +78,7 @@ import { UsersModule } from './users/users.module';
           DonationCertificate,
           TeamMember,
           Course,
+          CourseCategory,
           CourseOffering,
           CourseSession,
           CourseEnrollment,
@@ -103,6 +108,7 @@ import { UsersModule } from './users/users.module';
     EventsModule,
     DonationsModule,
     TeamMembersModule,
+    CourseCategoriesModule,
     CoursesModule,
     CertificatesModule,
     ReportsModule,

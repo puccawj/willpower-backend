@@ -1,6 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThan, Repository } from 'typeorm';
 import type { AuthUser } from '../auth/jwt.strategy';
 import { UserBranch } from '../users/entities/user-branch.entity';
 import { CourseSession } from './entities/course-session.entity';
@@ -21,13 +22,35 @@ export interface OfferingWithDetails extends CourseOffering {
 }
 
 @Injectable()
-export class OfferingsService {
+export class OfferingsService implements OnModuleInit {
+  private readonly logger = new Logger(OfferingsService.name);
+
   constructor(
     @InjectRepository(CourseOffering) private readonly offerings: Repository<CourseOffering>,
     @InjectRepository(Course) private readonly courses: Repository<Course>,
     @InjectRepository(CourseSession) private readonly sessions: Repository<CourseSession>,
     @InjectRepository(UserBranch) private readonly userBranches: Repository<UserBranch>,
   ) {}
+
+  /**
+   * Auto-transitions `published` offerings to `completed` once their end date has passed —
+   * previously this only ever happened if an admin manually changed the dropdown. `draft` and
+   * `cancelled` are left alone; only a genuinely-running offering "ends" on its own.
+   * Runs hourly, which is plenty for a date-only comparison, and also once at boot so a
+   * long-stopped dev/staging instance catches up immediately instead of waiting for the next tick.
+   */
+  onModuleInit(): void {
+    this.autoCompleteExpiredOfferings().catch((err) => this.logger.error('Startup offering auto-complete sweep failed', err));
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async autoCompleteExpiredOfferings(): Promise<void> {
+    const today = new Date().toISOString().slice(0, 10);
+    const result = await this.offerings.update({ status: 'published', endDate: LessThan(today) }, { status: 'completed' });
+    if (result.affected) {
+      this.logger.log(`Auto-completed ${result.affected} offering(s) past their end date.`);
+    }
+  }
 
   async findAll(actor: AuthUser): Promise<OfferingWithDetails[]> {
     const rows = await this.offerings.find({ order: { startDate: 'ASC' } });
