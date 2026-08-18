@@ -2,6 +2,25 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-17 (1) — Course Offering redesign, phase 3 (backend)
+
+- Simplified offering `status` from a wider set down to
+  `draft`/`published`/`completed`/`cancelled` (migration
+  `2026-08-16-simplify-offering-status.sql`), and enforced real business
+  rules around it: self- and admin-driven enrollment now requires the
+  offering to be `published`; once `completed`, the offering is locked
+  against further enrollment/session edits.
+- Added an optional `code` (short code/nickname) field on course offerings
+  (migration `2026-08-17-add-offering-code.sql`), so admins can tell apart
+  multiple offerings of the same course (e.g. two "Mindfulness Retreat"
+  runs) without relying on dates alone. Exposed on offering
+  create/update/list responses and the public offering listing.
+- Offering list/detail responses now include the parent course's
+  active/inactive flag, so the admin UI can flag "course inactive" on an
+  offering even when the offering itself is still `Published` — an
+  inactive course already hides all its offerings from the public site,
+  but that state wasn't visible anywhere in the offering list before.
+
 ## 2026-08-15 (1) — Course Offering redesign, phase 1 (backend)
 
 - **Sessions are no longer auto-generated on a fixed 7-day cadence.**
