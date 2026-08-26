@@ -84,6 +84,7 @@ export interface MyDonationRow {
   currency: string;
   eventTitle: string | null;
   certificateNo: string | null;
+  certificateUrl: string | null;
 }
 
 @Injectable()
@@ -294,7 +295,8 @@ export class MeService {
          d.item_description AS "itemDescription",
          d.currency,
          e.title AS "eventTitle",
-         d.certificate_no AS "certificateNo"
+         d.certificate_no AS "certificateNo",
+         d.certificate_url AS "certificateUrl"
        FROM donations d
        LEFT JOIN events e ON e.id = d.event_id
        WHERE d.user_id = $1 AND d.deleted_at IS NULL
