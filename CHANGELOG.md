@@ -2,6 +2,13 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-26 (4) — Expose donation certificate URL from /me/donations
+
+- `GET /me/donations` now returns `certificateUrl`, the PDF link already
+  stored on the donation once an admin issues a donation certificate.
+  It was being written but never selected, so the public-site/mobile
+  "My Donations" screens had no data to build a download link from.
+
 ## 2026-08-18 (3) — Course category becomes a managed list
 
 - Replaced `Course.category` (freeform text) with a `course_categories`
