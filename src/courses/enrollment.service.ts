@@ -125,6 +125,13 @@ export class EnrollmentService {
       );
     }
 
+    if (offering.capacity != null) {
+      const enrolledCount = await this.enrollments.count({ where: { offeringId, status: 'enrolled' } });
+      if (enrolledCount >= offering.capacity) {
+        throw new ConflictException('This offering is at capacity.');
+      }
+    }
+
     // Prerequisite courses are enforced for every enrollment path — self-service and
     // admin-driven alike. An admin/instructor can explicitly override with dto.force
     // (surfaced as a checkbox in the admin UI), which self-service callers never set.

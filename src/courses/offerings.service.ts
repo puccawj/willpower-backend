@@ -229,9 +229,15 @@ export class OfferingsService implements OnModuleInit {
   }
 
   async removeSession(offeringId: string, sessionId: string, actor: AuthUser): Promise<void> {
-    await this.assertOfferingAccess(offeringId, actor);
+    const offering = await this.assertOfferingAccess(offeringId, actor);
     const session = await this.sessions.findOne({ where: { id: sessionId, offeringId } });
     if (!session) throw new NotFoundException('Session not found.');
+    // A published offering's session count must keep matching the course's totalSessions (see
+    // the same check in `update()`) — removing one here would silently break that invariant and
+    // throw off every enrolled student's attendance %, since that's computed against totalSessions.
+    if (offering.status === 'published') {
+      throw new BadRequestException('Cannot remove a session from a published offering — set it back to Draft first.');
+    }
     // Deleting a session also drops any attendance recorded against it — acceptable for the
     // holiday/reschedule/mis-entry cases this is meant for; renumbering the rest is intentionally
     // left alone so a removed session doesn't shuffle every later session's number.

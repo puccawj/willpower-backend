@@ -116,6 +116,22 @@ export class CoursesService {
     const course = await this.courses.findOne({ where: { id } });
     if (!course) throw new NotFoundException('Course not found.');
 
+    if (dto.totalSessions !== undefined && dto.totalSessions !== course.totalSessions) {
+      // Changing the target session count out from under a published offering would silently
+      // break the "session count === totalSessions" invariant enforced when it was published
+      // (OfferingsService.update) — and every enrolled student's attendance % is computed
+      // against totalSessions, so it would also retroactively shift who's passing.
+      const [{ count }] = await this.courses.query(
+        `SELECT COUNT(*) AS count FROM course_offerings WHERE course_id = $1 AND status = 'published' AND deleted_at IS NULL`,
+        [id],
+      );
+      if (Number(count) > 0) {
+        throw new BadRequestException(
+          'Cannot change Total Sessions — this course has published offering(s). Set them back to Draft first.',
+        );
+      }
+    }
+
     if (dto.title !== undefined) course.title = dto.title;
     if (dto.description !== undefined) course.description = dto.description ?? null;
     if (dto.syllabus !== undefined) course.syllabus = dto.syllabus ?? null;
