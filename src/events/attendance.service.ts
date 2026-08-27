@@ -165,9 +165,12 @@ export class AttendanceService {
   async selfCheckin(eventId: string, userId: string): Promise<{ title: string; alreadyCheckedIn: boolean }> {
     const event = await this.getEventOrThrow(eventId);
 
+    // Scanning the event's QR code means the member is physically at the venue — treat that as
+    // an implicit "I'll attend" instead of blocking check-in behind a separate RSVP step, and
+    // regardless of capacity/waitlist (they're already there).
     const rsvp = await this.rsvps.findOne({ where: { eventId, userId } });
     if (!rsvp || rsvp.status !== 'confirm') {
-      throw new ConflictException('You need a confirmed RSVP for this event to check in.');
+      await this.upsertRsvp(eventId, userId, 'confirm');
     }
 
     const existing = await this.attendance.findOne({ where: { eventId, userId } });
