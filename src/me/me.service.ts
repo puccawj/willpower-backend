@@ -73,6 +73,8 @@ export interface MyCertificateRow {
   certificateNo: string;
   issuedAt: string;
   fileUrl: string;
+  backgroundImageUrl: string;
+  layoutConfig: Record<string, unknown>;
 }
 
 export interface MyDonationRow {
@@ -274,7 +276,9 @@ export class MeService {
          t.name AS "templateName",
          cert.certificate_no AS "certificateNo",
          cert.issued_at AS "issuedAt",
-         cert.file_url AS "fileUrl"
+         cert.file_url AS "fileUrl",
+         t.background_image_url AS "backgroundImageUrl",
+         t.layout_config AS "layoutConfig"
        FROM certificates cert
        LEFT JOIN course_offerings co ON co.id = cert.offering_id
        LEFT JOIN courses c ON c.id = co.course_id
