@@ -2,6 +2,17 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-27 (9) — Close three more integrity gaps found via a systematic audit
+
+- `enroll()` now rejects once an offering's enrolled count reaches its
+  `capacity` — previously unenforced, a class could be over-booked
+  past what was configured.
+- `removeSession()` now rejects removing a session from a published
+  offering, and `courses.update()` now rejects changing `totalSessions`
+  on a course with published offerings — both would otherwise break
+  the "session count == totalSessions" invariant added in CHANGELOG
+  (8), silently shifting every enrolled student's attendance %.
+
 ## 2026-08-27 (8) — Enforce session count against the course's Total Sessions
 
 - `POST /course-offerings/:id/sessions` now rejects adding a session
