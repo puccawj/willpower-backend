@@ -2,6 +2,16 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-26 (5) — Auto-confirm RSVP on QR self check-in
+
+- `POST /me/events/:eventId/checkin` previously required an existing
+  confirmed RSVP and threw a ConflictException otherwise, forcing a
+  member who scans an event's QR at the venue without having RSVP'd
+  online to first go find the event and tap "I'll attend". Scanning
+  the code already means they're there — self check-in now
+  auto-confirms the RSVP instead of requiring the separate step
+  (bypassing capacity/waitlist, since they're already present).
+
 ## 2026-08-26 (4) — Expose donation certificate URL from /me/donations
 
 - `GET /me/donations` now returns `certificateUrl`, the PDF link already
