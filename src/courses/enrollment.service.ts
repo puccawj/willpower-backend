@@ -292,6 +292,9 @@ export class EnrollmentService {
   private async getOfferingOrThrow(offeringId: string, actor?: AuthUser): Promise<CourseOffering> {
     const offering = await this.offerings.findOne({ where: { id: offeringId } });
     if (!offering) throw new NotFoundException('Offering not found.');
+    if (actor?.role === 'instructor' && offering.instructorId !== actor.id) {
+      throw new NotFoundException('Offering not found.');
+    }
     if (actor) await this.branchAccess.assertCanAccess(actor, offering.branchId, 'Offering not found.');
     return offering;
   }

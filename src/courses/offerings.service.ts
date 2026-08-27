@@ -57,6 +57,10 @@ export class OfferingsService implements OnModuleInit {
     const withDetails = await this.attachDetails(rows);
 
     if (actor.role === 'superadmin') return withDetails;
+    // Instructors only see the offerings they personally teach — everyone else assigned to the
+    // same branch (other instructors' classes, walk-in offerings with no instructor set) isn't
+    // theirs to view. Admins keep the wider branch-level view since they manage the whole branch.
+    if (actor.role === 'instructor') return withDetails.filter((o) => o.instructorId === actor.id);
 
     const actorBranchIds = await this.branchIdsOf(actor.id);
     return withDetails.filter((o) => actorBranchIds.has(o.branchId));
@@ -66,7 +70,9 @@ export class OfferingsService implements OnModuleInit {
     const offering = await this.offerings.findOne({ where: { id } });
     if (!offering) throw new NotFoundException('Offering not found.');
 
-    if (actor.role !== 'superadmin') {
+    if (actor.role === 'instructor') {
+      if (offering.instructorId !== actor.id) throw new NotFoundException('Offering not found.');
+    } else if (actor.role !== 'superadmin') {
       const actorBranchIds = await this.branchIdsOf(actor.id);
       if (!actorBranchIds.has(offering.branchId)) throw new NotFoundException('Offering not found.');
     }
@@ -151,7 +157,9 @@ export class OfferingsService implements OnModuleInit {
   async listSessions(offeringId: string, actor: AuthUser): Promise<CourseSession[]> {
     const offering = await this.offerings.findOne({ where: { id: offeringId } });
     if (!offering) throw new NotFoundException('Offering not found.');
-    if (actor.role !== 'superadmin') {
+    if (actor.role === 'instructor') {
+      if (offering.instructorId !== actor.id) throw new NotFoundException('Offering not found.');
+    } else if (actor.role !== 'superadmin') {
       const actorBranchIds = await this.branchIdsOf(actor.id);
       if (!actorBranchIds.has(offering.branchId)) throw new NotFoundException('Offering not found.');
     }
