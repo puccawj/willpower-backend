@@ -129,6 +129,17 @@ export class OfferingsService implements OnModuleInit {
     const nextEnd = dto.endDate ?? offering.endDate;
     this.ensureEndAfterStart(nextStart, nextEnd);
 
+    if (dto.status === 'published') {
+      const nextCourseId = dto.courseId ?? offering.courseId;
+      const course = await this.courses.findOne({ where: { id: nextCourseId } });
+      const sessionCount = await this.sessions.count({ where: { offeringId: id } });
+      if (!course || sessionCount !== course.totalSessions) {
+        throw new BadRequestException(
+          `Cannot publish — this offering has ${sessionCount} of the ${course?.totalSessions ?? 0} session(s) the course calls for. Build the full schedule in the Sessions tab first.`,
+        );
+      }
+    }
+
     if (dto.courseId !== undefined) offering.courseId = dto.courseId;
     if (dto.branchId !== undefined) offering.branchId = dto.branchId;
     if (dto.code !== undefined) offering.code = dto.code?.trim() || null;
@@ -167,7 +178,15 @@ export class OfferingsService implements OnModuleInit {
   }
 
   async addSession(offeringId: string, dto: CreateSessionDto, actor: AuthUser): Promise<CourseSession> {
-    await this.assertOfferingAccess(offeringId, actor);
+    const offering = await this.assertOfferingAccess(offeringId, actor);
+
+    const course = await this.courses.findOne({ where: { id: offering.courseId } });
+    const currentCount = await this.sessions.count({ where: { offeringId } });
+    if (course && currentCount >= course.totalSessions) {
+      throw new BadRequestException(
+        `This offering already has all ${course.totalSessions} session(s) the course calls for — remove one before adding another, or update the course's Total Sessions.`,
+      );
+    }
 
     let sessionNo = dto.sessionNo;
     if (sessionNo === undefined) {
