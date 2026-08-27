@@ -2,6 +2,14 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-27 (7) — Expose certificate template background/layout from /me/certificates
+
+- `GET /me/certificates` now also returns `backgroundImageUrl` and
+  `layoutConfig` from the issuing template, so a client can render the
+  certificate the way it was actually designed instead of guessing.
+  Needed by the mobile app's "certificate received" screen, which
+  previously showed a generic mock-up unrelated to the real template.
+
 ## 2026-08-27 (6) — Scope instructor visibility to offerings they actually teach
 
 - Instructors were scoped by branch only, identically to admins — a
