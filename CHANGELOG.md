@@ -2,6 +2,14 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-27 (10) — Capacity only blocks self-enroll, not admin-driven enrollment
+
+- The capacity check added in CHANGELOG (9) blocked every enrollment
+  path uniformly. Narrowed so it only applies to self-service
+  enrollment (public-site/mobile) — an admin/instructor adding a
+  student directly can still exceed capacity as a deliberate
+  exception, same as the existing prerequisite override.
+
 ## 2026-08-27 (9) — Close three more integrity gaps found via a systematic audit
 
 - `enroll()` now rejects once an offering's enrolled count reaches its
