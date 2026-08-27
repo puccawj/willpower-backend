@@ -2,6 +2,18 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-27 (6) — Scope instructor visibility to offerings they actually teach
+
+- Instructors were scoped by branch only, identically to admins — a
+  newly created instructor with no offerings assigned to them could
+  see, and open the roster/attendance/session schedule for, every
+  other instructor's class in the same branch. `GET /course-offerings`
+  (list + detail), `GET /course-offerings/:id/sessions`, and every
+  roster/enrollment/attendance/check-in-QR endpoint under
+  `/course-offerings/:offeringId/...` now scope the instructor role to
+  `offering.instructorId === actor.id`. Admins/superadmin are
+  unaffected.
+
 ## 2026-08-26 (5) — Auto-confirm RSVP on QR self check-in
 
 - `POST /me/events/:eventId/checkin` previously required an existing
