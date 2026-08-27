@@ -125,7 +125,9 @@ export class EnrollmentService {
       );
     }
 
-    if (offering.capacity != null) {
+    // Capacity only blocks self-service enrollment — an admin/instructor adding someone directly
+    // (e.g. a walk-in exception) can go over, same as the prerequisite override below.
+    if (!actor && offering.capacity != null) {
       const enrolledCount = await this.enrollments.count({ where: { offeringId, status: 'enrolled' } });
       if (enrolledCount >= offering.capacity) {
         throw new ConflictException('This offering is at capacity.');
