@@ -2,6 +2,16 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-27 (8) — Enforce session count against the course's Total Sessions
+
+- `POST /course-offerings/:id/sessions` now rejects adding a session
+  once the offering already has as many sessions as the course's
+  `totalSessions` calls for — nothing previously stopped building more
+  (or fewer) sessions than that number.
+- `PATCH /course-offerings/:id` now rejects setting `status: 'published'`
+  unless the built session count exactly equals `totalSessions`, so an
+  incomplete schedule can no longer go live.
+
 ## 2026-08-27 (7) — Expose certificate template background/layout from /me/certificates
 
 - `GET /me/certificates` now also returns `backgroundImageUrl` and
