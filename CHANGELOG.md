@@ -2,6 +2,14 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-27 (11) — Return the logged-in user's real assigned branches from login
+
+- `/auth/login`, `/auth/register`, and SSO login now return
+  `user.branchNames` — the caller's actual branches from
+  `user_branches`, resolved fresh on every login. Needed by the admin
+  panel's topbar, which previously hardcoded "USA · Canada" for every
+  admin account regardless of their real assignment.
+
 ## 2026-08-27 (10) — Capacity only blocks self-enroll, not admin-driven enrollment
 
 - The capacity check added in CHANGELOG (9) blocked every enrollment
