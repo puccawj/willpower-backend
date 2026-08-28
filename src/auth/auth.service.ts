@@ -7,6 +7,7 @@ import { randomUUID } from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { UserBranch } from '../users/entities/user-branch.entity';
 import { RegisterDto } from './dto/register.dto';
 
 const SALT_ROUNDS = 10;
@@ -14,7 +15,7 @@ const REMEMBER_ME_EXPIRES_IN = '30d';
 
 export interface AuthResult {
   accessToken: string;
-  user: { id: string; email: string; role: string; name: string };
+  user: { id: string; email: string; role: string; name: string; branchNames: string[] };
 }
 
 @Injectable()
@@ -23,6 +24,7 @@ export class AuthService {
 
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(UserBranch) private readonly userBranches: Repository<UserBranch>,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
   ) {
@@ -163,7 +165,19 @@ export class AuthService {
         email: user.email,
         role: user.role,
         name: `${user.firstName} ${user.lastName}`.trim(),
+        branchNames: await this.branchNamesOf(user.id),
       },
     };
+  }
+
+  /** The admin panel's topbar shows this next to an admin's name so it reflects their actual
+   * assigned branches instead of a hardcoded guess — empty for superadmin (who isn't scoped to
+   * particular branches) and for roles the frontend doesn't render a branch scope for at all. */
+  private async branchNamesOf(userId: string): Promise<string[]> {
+    const rows: { name: string }[] = await this.userBranches.query(
+      `SELECT b.name FROM user_branches ub JOIN branches b ON b.id = ub.branch_id WHERE ub.user_id = $1 ORDER BY b.name ASC`,
+      [userId],
+    );
+    return rows.map((r) => r.name);
   }
 }
