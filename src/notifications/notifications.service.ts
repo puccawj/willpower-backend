@@ -54,7 +54,9 @@ export class NotificationsService {
       .select('u.id', 'id')
       .where('u.deleted_at IS NULL')
       .andWhere("u.status = 'active'");
-    if (branchId) qb.andWhere('u.primary_branch_id = :branchId', { branchId });
+    if (branchId) {
+      qb.andWhere('EXISTS (SELECT 1 FROM user_branches ub WHERE ub.user_id = u.id AND ub.branch_id = :branchId)', { branchId });
+    }
     if (dto.studentsOnly) qb.andWhere("u.role = 'student'");
 
     const recipients: { id: string }[] = await qb.getRawMany();

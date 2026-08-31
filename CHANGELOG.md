@@ -2,6 +2,19 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-31 (14) — Broadcast now reaches every branch a user belongs to, not just their primary
+
+- `POST /notifications/broadcast` with `scope: "branch"` matched
+  recipients on `users.primary_branch_id` only — a user assigned to
+  more than one branch via `user_branches` (e.g. an admin covering two
+  branches) never received a broadcast targeted at their non-primary
+  branch. Every other branch-scoped feature in the app (Users,
+  Donations, Student Applications, Dashboard) checks full
+  `user_branches` membership, not just the primary one; broadcast now
+  matches that pattern via `EXISTS (... user_branches ...)`. Verified
+  locally: `admin@willpower.org` (primary = USA, also a Canada member)
+  now receives a broadcast sent to Canada.
+
 ## 2026-08-31 (13) — Restrict Reports/Home Hero/Home Banners/About/Privacy to superadmin
 
 - `ReportsController`, `HomeBannersController`, and
