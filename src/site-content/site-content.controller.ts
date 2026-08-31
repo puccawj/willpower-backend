@@ -9,9 +9,9 @@ import { SiteContentService } from './site-content.service';
 
 @ApiTags('site-content')
 @ApiBearerAuth('access-token')
-@ApiForbiddenResponse({ description: 'Requires the superadmin or admin role.' })
+@ApiForbiddenResponse({ description: 'Requires the superadmin role.' })
 @UseGuards(RolesGuard)
-@Roles('superadmin', 'admin')
+@Roles('superadmin')
 @Controller('site-content')
 export class SiteContentController {
   constructor(private readonly siteContent: SiteContentService) {}

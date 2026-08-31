@@ -8,9 +8,9 @@ import { ReportsService } from './reports.service';
 
 @ApiTags('reports')
 @ApiBearerAuth('access-token')
-@ApiForbiddenResponse({ description: 'Requires the superadmin or admin role.' })
+@ApiForbiddenResponse({ description: 'Requires the superadmin role.' })
 @UseGuards(RolesGuard)
-@Roles('superadmin', 'admin')
+@Roles('superadmin')
 @Controller('reports')
 export class ReportsController {
   constructor(private readonly reports: ReportsService) {}

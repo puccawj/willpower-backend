@@ -8,9 +8,9 @@ import { HomeBannersService } from './home-banners.service';
 
 @ApiTags('home-banners')
 @ApiBearerAuth('access-token')
-@ApiForbiddenResponse({ description: 'Requires the superadmin or admin role.' })
+@ApiForbiddenResponse({ description: 'Requires the superadmin role.' })
 @UseGuards(RolesGuard)
-@Roles('superadmin', 'admin')
+@Roles('superadmin')
 @Controller('home-banners')
 export class HomeBannersController {
   constructor(private readonly banners: HomeBannersService) {}
