@@ -2,6 +2,13 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-31 (13) — Restrict Reports/Home Hero/Home Banners/About/Privacy to superadmin
+
+- `ReportsController`, `HomeBannersController`, and
+  `SiteContentController` (serves Home Hero, About Page, and Privacy
+  Policy, keyed by slug) now require the `superadmin` role — regular
+  admin accounts can no longer view or edit these.
+
 ## 2026-08-28 (12) — Student applications: pick multiple branches, each decided independently
 
 - Applying to become a student previously collected no branch at all,
