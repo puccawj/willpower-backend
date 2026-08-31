@@ -39,6 +39,7 @@ import { MeModule } from './me/me.module';
 import { Rating } from './ratings/entities/rating.entity';
 import { RatingsModule } from './ratings/ratings.module';
 import { StudentApplication } from './student-applications/entities/student-application.entity';
+import { StudentApplicationBranch } from './student-applications/entities/student-application-branch.entity';
 import { StudentApplicationsModule } from './student-applications/student-applications.module';
 import { Notification } from './notifications/entities/notification.entity';
 import { NotificationsModule } from './notifications/notifications.module';
@@ -95,6 +96,7 @@ import { UsersModule } from './users/users.module';
           HomeBanner,
           Rating,
           StudentApplication,
+          StudentApplicationBranch,
         ],
         synchronize: false,
       }),

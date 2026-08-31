@@ -1,8 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
-export type StudentApplicationStatus = 'pending' | 'approved' | 'rejected';
-
 @Entity({ name: 'student_applications' })
 export class StudentApplication {
   @ApiProperty()
@@ -40,18 +38,6 @@ export class StudentApplication {
   @ApiPropertyOptional({ nullable: true })
   @Column({ name: 'photo_url', type: 'varchar', length: 500, nullable: true })
   photoUrl: string | null;
-
-  @ApiProperty({ enum: ['pending', 'approved', 'rejected'] })
-  @Column({ type: 'enum', enumName: 'student_application_status', enum: ['pending', 'approved', 'rejected'], default: 'pending' })
-  status: StudentApplicationStatus;
-
-  @ApiPropertyOptional({ nullable: true })
-  @Column({ name: 'reviewed_by', type: 'uuid', nullable: true })
-  reviewedBy: string | null;
-
-  @ApiPropertyOptional({ nullable: true })
-  @Column({ name: 'reviewed_at', type: 'timestamptz', nullable: true })
-  reviewedAt: Date | null;
 
   @ApiProperty()
   @CreateDateColumn({ name: 'created_at' })

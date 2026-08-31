@@ -16,20 +16,23 @@ export class StudentApplicationsController {
   constructor(private readonly applications: StudentApplicationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'List student applications, optionally filtered by status (pending/approved/rejected/all).' })
-  findAll(@Query('status') status?: string) {
-    return this.applications.findAll(status);
+  @ApiOperation({
+    summary:
+      'List student applications, one row per branch requested, optionally filtered by status (pending/approved/rejected/all). Superadmin sees every branch; admin sees only their own.',
+  })
+  findAll(@Query('status') status: string | undefined, @CurrentUser() actor: AuthUser) {
+    return this.applications.findAll(status, actor);
   }
 
   @Patch(':id/approve')
-  @ApiOperation({ summary: "Approve an application — sets the applicant's role to student." })
+  @ApiOperation({ summary: "Approve one branch of an application — grants the applicant access to that branch and sets their role to student." })
   approve(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
-    return this.applications.approve(id, actor.id);
+    return this.applications.approve(id, actor);
   }
 
   @Patch(':id/reject')
-  @ApiOperation({ summary: 'Reject an application.' })
+  @ApiOperation({ summary: 'Reject one branch of an application.' })
   reject(@Param('id') id: string, @CurrentUser() actor: AuthUser) {
-    return this.applications.reject(id, actor.id);
+    return this.applications.reject(id, actor);
   }
 }
