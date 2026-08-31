@@ -2,6 +2,24 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-08-28 (12) — Student applications: pick multiple branches, each decided independently
+
+- Applying to become a student previously collected no branch at all,
+  and approval never granted branch membership — an approved student
+  ended up with zero branches. `POST /me/student-application` now
+  requires `branchIds: string[]` (one or more); each becomes its own
+  `student_application_branches` row with its own pending/approved/
+  rejected status, so a student can be approved at one branch while
+  still pending or rejected at another.
+- `GET /student-applications` now returns one row per (application,
+  branch) and scopes to the admin's own branches via `user_branches`
+  (superadmin sees/acts on every branch). Approve grants that branch
+  via `user_branches` (first-ever approval also sets `primaryBranchId`
+  and flips role to `student`); reject only affects that one branch.
+- Migration: `database/migrations/2026-08-28-add-student-application-branches.sql`
+  adds the new table and drops the now-unused parent-level `status`/
+  `reviewed_by`/`reviewed_at` columns from `student_applications`.
+
 ## 2026-08-27 (11) — Return the logged-in user's real assigned branches from login
 
 - `/auth/login`, `/auth/register`, and SSO login now return
