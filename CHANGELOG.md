@@ -2,6 +2,21 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-09-01 (15) — Expose registered branches on /me, and let students apply for more
+
+- `GET /me` / `PATCH /me` now return `branches: {branchId, branchName}[]` — the
+  account's actual `user_branches` membership. Previously `/me` carried no
+  branch information at all, so the mobile Profile page had no way to show
+  which branch(es) a member is registered at.
+- `POST /me/student-application` (apply to become a student) previously
+  rejected anyone whose role wasn't `general`, so an already-approved
+  `student` had no way to register at a second branch through the app. Now
+  accepts `student` too, and rejects branch ids the account already belongs
+  to with a clear message instead of silently re-approving them.
+- `GET /me/certificates` now also returns `templateType`
+  (`certificate`/`donation_money`/`donation_goods`) so a client can group or
+  filter certificates by type — needed by the mobile My Certificates filter.
+
 ## 2026-08-31 (14) — Broadcast now reaches every branch a user belongs to, not just their primary
 
 - `POST /notifications/broadcast` with `scope: "branch"` matched

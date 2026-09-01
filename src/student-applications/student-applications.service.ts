@@ -52,17 +52,24 @@ export class StudentApplicationsService {
     private readonly branchAccess: BranchAccessService,
   ) {}
 
+  /** 'general' accounts apply to become a student for the first time; already-approved
+   * 'student' accounts use the same form to apply for an *additional* branch. */
   async submit(userId: string, dto: CreateStudentApplicationDto): Promise<MyStudentApplication> {
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found.');
-    if (user.role !== 'general') {
-      throw new BadRequestException('Only general accounts can apply to become a student.');
+    if (user.role !== 'general' && user.role !== 'student') {
+      throw new BadRequestException('Only general or student accounts can submit a branch application.');
     }
 
     const branchIds = [...new Set(dto.branchIds)];
     const foundBranches = await this.branches.find({ where: { id: In(branchIds) } });
     if (foundBranches.length !== branchIds.length) {
       throw new BadRequestException('One or more selected branches were not found.');
+    }
+
+    const existingBranchIds = await this.branchAccess.branchIdsOf(userId);
+    if (branchIds.some((id) => existingBranchIds.has(id))) {
+      throw new BadRequestException("You're already registered at one or more of the selected branches.");
     }
 
     const open = await this.hasOpenApplication(userId);

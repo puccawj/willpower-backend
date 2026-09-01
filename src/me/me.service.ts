@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+import { UserBranch } from '../users/entities/user-branch.entity';
 import { EventRsvp } from '../events/entities/event-rsvp.entity';
 import { CourseEnrollment } from '../courses/entities/course-enrollment.entity';
 import { Certificate } from '../certificates/entities/certificate.entity';
@@ -36,6 +37,10 @@ export interface MyProfile {
   /** Drives whether the mobile/public-site "change password" UI shows at all —
    * only 'self' accounts have a password the user themselves ever set. */
   registrationSource: string;
+  /** The branches this account is actually registered/approved at — empty for a 'general'
+   * account that hasn't been approved anywhere yet. Drives the mobile Profile page's branch
+   * list and lets it exclude already-registered branches from the "add a branch" picker. */
+  branches: { branchId: string; branchName: string }[];
 }
 
 export interface MyEventRow {
@@ -70,6 +75,7 @@ export interface MyCertificateRow {
   offeringId: string | null;
   courseTitle: string | null;
   templateName: string;
+  templateType: string;
   certificateNo: string;
   issuedAt: string;
   fileUrl: string;
@@ -93,6 +99,7 @@ export interface MyDonationRow {
 export class MeService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(UserBranch) private readonly userBranches: Repository<UserBranch>,
     @InjectRepository(EventRsvp) private readonly rsvps: Repository<EventRsvp>,
     @InjectRepository(CourseEnrollment) private readonly enrollments: Repository<CourseEnrollment>,
     @InjectRepository(Certificate) private readonly certificates: Repository<Certificate>,
@@ -137,6 +144,14 @@ export class MeService {
     return this.toProfile(user);
   }
 
+  private async branchesOf(userId: string): Promise<{ branchId: string; branchName: string }[]> {
+    const rows: { branchId: string; branchName: string }[] = await this.userBranches.query(
+      `SELECT b.id AS "branchId", b.name AS "branchName" FROM user_branches ub JOIN branches b ON b.id = ub.branch_id WHERE ub.user_id = $1 ORDER BY b.name ASC`,
+      [userId],
+    );
+    return rows;
+  }
+
   async updateProfile(userId: string, dto: UpdateMyProfileDto): Promise<MyProfile> {
     const user = await this.users.findOneOrFail({ where: { id: userId } });
     if (dto.firstName !== undefined) user.firstName = dto.firstName.trim();
@@ -163,7 +178,7 @@ export class MeService {
     await this.users.save(user);
   }
 
-  private toProfile(user: User): MyProfile {
+  private async toProfile(user: User): Promise<MyProfile> {
     return {
       id: user.id,
       firstName: user.firstName,
@@ -177,6 +192,7 @@ export class MeService {
       role: user.role,
       initials: `${user.firstName[0] ?? ''}${user.lastName[0] ?? ''}`.toUpperCase(),
       registrationSource: user.registrationSource,
+      branches: await this.branchesOf(user.id),
     };
   }
 
@@ -274,6 +290,7 @@ export class MeService {
          cert.offering_id AS "offeringId",
          c.title AS "courseTitle",
          t.name AS "templateName",
+         t.type AS "templateType",
          cert.certificate_no AS "certificateNo",
          cert.issued_at AS "issuedAt",
          cert.file_url AS "fileUrl",

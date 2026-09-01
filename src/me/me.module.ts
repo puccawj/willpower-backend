@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
+import { UserBranch } from '../users/entities/user-branch.entity';
 import { EventRsvp } from '../events/entities/event-rsvp.entity';
 import { CourseEnrollment } from '../courses/entities/course-enrollment.entity';
 import { Certificate } from '../certificates/entities/certificate.entity';
@@ -16,7 +17,7 @@ import { MeService } from './me.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, EventRsvp, CourseEnrollment, Certificate, Donation]),
+    TypeOrmModule.forFeature([User, UserBranch, EventRsvp, CourseEnrollment, Certificate, Donation]),
     EventsModule,
     CoursesModule,
     DonationsModule,
