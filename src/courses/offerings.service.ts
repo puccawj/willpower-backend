@@ -53,12 +53,13 @@ export class OfferingsService implements OnModuleInit {
       this.logger.log(`Auto-completed ${result.affected} offering(s) past their end date.`);
     }
 
-    // Also finalize completed/failed on any enrollment left at 'enrolled' whose offering has
-    // already ended — otherwise a student who was never issued a certificate stays stuck at
-    // 'enrolled' forever, which incorrectly fails the prerequisite check for later courses.
-    const finalized = await this.enrollmentService.finalizeAllForEndedOfferings();
+    // Safety-net sweep: catches a student who already crossed the passing bar but hasn't
+    // checked in again since (the primary trigger), and ended offerings' stragglers who need
+    // 'failed' recorded — otherwise either case can stay stuck at 'enrolled' indefinitely,
+    // incorrectly failing the prerequisite check for later courses.
+    const finalized = await this.enrollmentService.finalizeAllEligibleEnrollments();
     if (finalized) {
-      this.logger.log(`Finalized completion status for ${finalized} enrollment(s) on ended offerings.`);
+      this.logger.log(`Re-checked completion status for ${finalized} 'enrolled' row(s).`);
     }
   }
 

@@ -2,6 +2,28 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-09-02 (18) — Retroactively re-check existing enrollments for early completion
+
+- (17) only marked a student `completed` as soon as attendance crossed the
+  passing bar going forward — a student who'd already crossed it before
+  that logic shipped (attendance recorded earlier, no fresh check-in
+  since) stayed at `enrolled` until their next check-in, which might never
+  come if the offering only has sessions left that they don't attend.
+- The hourly/boot sweep (`finalizeAllEligibleEnrollments`, previously only
+  covering ended offerings) now re-checks every `enrolled` row in the
+  system, not just ones on already-ended offerings — `finalizeCompletion()`
+  itself still decides completed/failed/no-op per row, this just calls it
+  more broadly so existing students get caught too.
+- Fixed a real crash surfaced by that broadening: a single enrollment
+  pointing at a soft-deleted offering threw and aborted the entire sweep,
+  silently skipping every other row after it. The query now excludes
+  soft-deleted offerings, and each row's finalize call is isolated in a
+  try/catch so one bad row can never block the rest.
+- Verified locally: a student with 8/10 (80%, passing bar 70%) attendance
+  recorded directly (no check-in event, simulating pre-existing data) on
+  a not-yet-ended offering — stayed `enrolled` until the sweep ran, then
+  flipped to `completed` on the next boot without any new check-in.
+
 ## 2026-09-02 (17) — Mark a course "completed" as soon as attendance passes, not just at offering end
 
 - `finalizeCompletion()` previously only ever recorded `completed`/`failed`

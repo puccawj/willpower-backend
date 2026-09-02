@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as QRCode from 'qrcode';
@@ -50,6 +50,8 @@ export interface CompletionStatus {
 
 @Injectable()
 export class EnrollmentService {
+  private readonly logger = new Logger(EnrollmentService.name);
+
   constructor(
     @InjectRepository(CourseOffering) private readonly offerings: Repository<CourseOffering>,
     @InjectRepository(Course) private readonly courses: Repository<Course>,
@@ -206,25 +208,33 @@ export class EnrollmentService {
   }
 
   /**
-   * Finalizes completion status for every still-'enrolled' row on an offering that has already
-   * ended, without waiting for an admin to issue that student's certificate first — previously
-   * `finalizeCompletion()` only ever ran as a side effect of certificate issuance, so a student
-   * who genuinely finished a course but was never issued a certificate (forgotten, or no
-   * template configured yet) stayed stuck at status 'enrolled' forever, permanently failing the
-   * prerequisite check for any course that requires it. Called by the offering auto-complete
-   * sweep (`OfferingsService.autoCompleteExpiredOfferings`).
+   * Runs `finalizeCompletion()` over every still-'enrolled' row in the system — a safety-net
+   * sweep, not the primary trigger (that's each check-in call). Catches two cases that a check-in
+   * event alone wouldn't: a student who already passed before this logic existed and simply
+   * hasn't checked in again since (retroactive backfill), and an ended offering's stragglers who
+   * never crossed the passing bar and so need their 'failed' recorded. `finalizeCompletion()`
+   * itself is the one deciding completed vs. failed vs. no-op — this just calls it broadly.
+   * Called by the offering auto-complete sweep (`OfferingsService.autoCompleteExpiredOfferings`).
    */
-  async finalizeAllForEndedOfferings(): Promise<number> {
+  async finalizeAllEligibleEnrollments(): Promise<number> {
     const rows: { offering_id: string; user_id: string }[] = await this.enrollments.query(
       `SELECT ce.offering_id, ce.user_id
          FROM course_enrollments ce
-         JOIN course_offerings co ON co.id = ce.offering_id
-        WHERE ce.status = 'enrolled' AND co.end_date < CURRENT_DATE`,
+         JOIN course_offerings co ON co.id = ce.offering_id AND co.deleted_at IS NULL
+        WHERE ce.status = 'enrolled'`,
     );
+    let checked = 0;
     for (const r of rows) {
-      await this.finalizeCompletion(r.offering_id, r.user_id);
+      try {
+        await this.finalizeCompletion(r.offering_id, r.user_id);
+        checked++;
+      } catch (err) {
+        // One bad row (e.g. a course/branch deleted out from under a lingering enrollment)
+        // must never stop the sweep from reaching the rest.
+        this.logger.warn(`Could not finalize enrollment (offering ${r.offering_id}, user ${r.user_id}): ${err}`);
+      }
     }
-    return rows.length;
+    return checked;
   }
 
   /** Course titles the user has not yet completed among the target course's prerequisites. */
