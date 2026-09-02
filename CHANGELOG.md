@@ -2,6 +2,27 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-09-02 (17) — Mark a course "completed" as soon as attendance passes, not just at offering end
+
+- `finalizeCompletion()` previously only ever recorded `completed`/`failed`
+  once the offering's end date had passed — so a student who'd already
+  attended enough sessions to clear the passing bar still showed
+  `enrolled` (and failed prerequisite checks for later courses) for
+  however many weeks/months remained until the course officially ended.
+- Since `attendedSessions` only ever increases and `totalSessions` is
+  fixed once a course is published, once attendance crosses the passing
+  percentage the outcome can never drop back below it — so `completed`
+  is now recorded the moment that happens, from either check-in path
+  (`toggleAttendance` / `selfCheckinSession`), no longer gated on the
+  offering having ended. `failed` still requires the offering to have
+  genuinely ended, since a low attendance rate can still be salvaged by
+  attending more sessions before then.
+- Verified locally: a course with 10 sessions / 70% passing, offering
+  ending months in the future — enrollment stayed `enrolled` through
+  6/10 sessions (60%), then flipped to `completed` immediately on the
+  7th check-in (70%), with 3 sessions and ~4 months still remaining on
+  the offering.
+
 ## 2026-09-02 (16) — Fix: prerequisite check could permanently block a student who actually passed
 
 - `CourseEnrollment.status` only ever flipped from `enrolled` to

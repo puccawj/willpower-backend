@@ -177,16 +177,24 @@ export class EnrollmentService {
   }
 
   /**
-   * Computes completion status and, once the offering has ended, persists it onto the
-   * enrollment's status (completed/failed) — previously that enum value was never written by
-   * anything. Idempotent and a no-op on enrollments already in a terminal/non-'enrolled' state
-   * (dropped/waitlist), so it never overwrites a manual admin decision.
+   * Computes completion status and persists it onto the enrollment's status (completed/failed)
+   * — previously that enum value was never written by anything. Idempotent and a no-op on
+   * enrollments already in a terminal/non-'enrolled' state (dropped/waitlist), so it never
+   * overwrites a manual admin decision.
+   *
+   * A 'completed' outcome is recorded as soon as attendance-to-date meets the passing bar, even
+   * mid-course — attendedSessions only ever increases and totalSessions is fixed per course once
+   * published, so once the percentage crosses the passing threshold it cannot later drop back
+   * below it; there's nothing to gain by waiting for the offering to end. A 'failed' outcome, by
+   * contrast, can still be salvaged by attending more sessions, so it's only ever recorded once
+   * the offering has genuinely ended and no sessions remain.
    */
   async finalizeCompletion(offeringId: string, userId: string): Promise<CompletionStatus> {
     const offering = await this.getOfferingOrThrow(offeringId);
     const status = await this.getCompletionStatus(offeringId, userId);
 
-    if (new Date() >= new Date(offering.endDate)) {
+    const offeringEnded = new Date() >= new Date(offering.endDate);
+    if (status.isPassing || offeringEnded) {
       const enrollment = await this.enrollments.findOne({ where: { offeringId, userId } });
       if (enrollment && enrollment.status === 'enrolled') {
         enrollment.status = status.isPassing ? 'completed' : 'failed';
@@ -268,6 +276,7 @@ export class EnrollmentService {
     await this.attendance.save(
       this.attendance.create({ sessionId, userId, checkedInBy: actorId, method: 'manual' }),
     );
+    await this.finalizeCompletion(session.offeringId, userId);
     return { checkedIn: true };
   }
 
@@ -317,6 +326,7 @@ export class EnrollmentService {
     await this.attendance.save(
       this.attendance.create({ sessionId, userId, checkedInBy: userId, method: 'self_qr' }),
     );
+    await this.finalizeCompletion(session.offeringId, userId);
     return { title: `Session ${session.sessionNo}`, alreadyCheckedIn: false };
   }
 
