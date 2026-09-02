@@ -197,6 +197,28 @@ export class EnrollmentService {
     return status;
   }
 
+  /**
+   * Finalizes completion status for every still-'enrolled' row on an offering that has already
+   * ended, without waiting for an admin to issue that student's certificate first — previously
+   * `finalizeCompletion()` only ever ran as a side effect of certificate issuance, so a student
+   * who genuinely finished a course but was never issued a certificate (forgotten, or no
+   * template configured yet) stayed stuck at status 'enrolled' forever, permanently failing the
+   * prerequisite check for any course that requires it. Called by the offering auto-complete
+   * sweep (`OfferingsService.autoCompleteExpiredOfferings`).
+   */
+  async finalizeAllForEndedOfferings(): Promise<number> {
+    const rows: { offering_id: string; user_id: string }[] = await this.enrollments.query(
+      `SELECT ce.offering_id, ce.user_id
+         FROM course_enrollments ce
+         JOIN course_offerings co ON co.id = ce.offering_id
+        WHERE ce.status = 'enrolled' AND co.end_date < CURRENT_DATE`,
+    );
+    for (const r of rows) {
+      await this.finalizeCompletion(r.offering_id, r.user_id);
+    }
+    return rows.length;
+  }
+
   /** Course titles the user has not yet completed among the target course's prerequisites. */
   private async missingPrerequisiteTitles(courseId: string, userId: string): Promise<string[]> {
     const rows = await this.enrollments.query(

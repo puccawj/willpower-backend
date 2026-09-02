@@ -11,6 +11,7 @@ import { CreateOfferingDto } from './dto/create-offering.dto';
 import { UpdateOfferingDto } from './dto/update-offering.dto';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
+import { EnrollmentService } from './enrollment.service';
 
 export interface OfferingWithDetails extends CourseOffering {
   courseTitle: string;
@@ -30,6 +31,7 @@ export class OfferingsService implements OnModuleInit {
     @InjectRepository(Course) private readonly courses: Repository<Course>,
     @InjectRepository(CourseSession) private readonly sessions: Repository<CourseSession>,
     @InjectRepository(UserBranch) private readonly userBranches: Repository<UserBranch>,
+    private readonly enrollmentService: EnrollmentService,
   ) {}
 
   /**
@@ -49,6 +51,14 @@ export class OfferingsService implements OnModuleInit {
     const result = await this.offerings.update({ status: 'published', endDate: LessThan(today) }, { status: 'completed' });
     if (result.affected) {
       this.logger.log(`Auto-completed ${result.affected} offering(s) past their end date.`);
+    }
+
+    // Also finalize completed/failed on any enrollment left at 'enrolled' whose offering has
+    // already ended — otherwise a student who was never issued a certificate stays stuck at
+    // 'enrolled' forever, which incorrectly fails the prerequisite check for later courses.
+    const finalized = await this.enrollmentService.finalizeAllForEndedOfferings();
+    if (finalized) {
+      this.logger.log(`Finalized completion status for ${finalized} enrollment(s) on ended offerings.`);
     }
   }
 

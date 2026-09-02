@@ -2,6 +2,31 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-09-02 (16) — Fix: prerequisite check could permanently block a student who actually passed
+
+- `CourseEnrollment.status` only ever flipped from `enrolled` to
+  `completed`/`failed` as a side effect of an admin manually issuing that
+  specific student's certificate (`finalizeCompletion()`, previously called
+  only from `CertificatesService.issue()`). The prerequisite check
+  (`missingPrerequisiteTitles`) requires `status = 'completed'` — so a
+  student who genuinely attended and passed a prerequisite course, but
+  whose admin never got around to issuing them a certificate (or couldn't,
+  because no certificate template was configured yet for that branch), was
+  **permanently blocked** from ever enrolling in any course that lists it
+  as a prerequisite, with no way to unblock themselves.
+- Reproduced locally: enrolled a test student in an ended offering with
+  100% attendance but no certificate issued — `missingPrerequisiteTitles`
+  still flagged it as incomplete, and enrolling in the dependent course
+  failed with "has not completed [course]".
+- Fixed by adding `EnrollmentService.finalizeAllForEndedOfferings()`,
+  called from the existing hourly `autoCompleteExpiredOfferings` cron (and
+  its once-at-boot run) — finalizes completion status for every
+  still-`enrolled` row whose offering has already ended, independent of
+  whether a certificate was ever issued. Verified the fix live: after the
+  sweep ran, the same student's enrollment flipped to `completed` and a
+  real `POST /course-offerings/:id/enrollments` call for the dependent
+  course succeeded.
+
 ## 2026-09-01 (15) — Expose registered branches on /me, and let students apply for more
 
 - `GET /me` / `PATCH /me` now return `branches: {branchId, branchName}[]` — the
