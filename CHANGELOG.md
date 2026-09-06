@@ -2,14 +2,34 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-09-06 (20) — reject() must not revoke access still justified by a sibling row
+
+- `submit()` lets a user re-apply to a branch after an earlier rejection
+  (only blocks re-applying while that branch is *currently granted*), so
+  the same (user, branch) pair can end up with more than one
+  `student_application_branches` row across separate applications —
+  confirmed this exact case already existed in production from a real
+  re-apply (one row rejected, a later one approved for the same branch).
+- `reject()` was revoking access unconditionally whenever the row being
+  rejected had been `approved`, without checking whether a *sibling* row
+  for that same branch was also still `approved` and actually the thing
+  justifying access. Added `hasOtherApprovedRowForBranch()` — reject()
+  now only revokes when this row was the sole approval, so correcting a
+  stale/duplicate row can never strip access out from under a still-valid
+  one.
+- Also refined (19) same day: `approve()` now rejects the `pending →
+  rejected → re-approve` path outright (`BadRequestException`) — a
+  rejected branch is final; the applicant re-applies instead. Only
+  `reject()` can still flip an already-decided (`approved`) row.
+
 ## 2026-09-06 (19) — Allow admin to flip a student application's approve/reject decision
 
 - `approve()`/`reject()` on `student-applications` previously threw once
   a branch left `pending`, blocking any correction of a mistaken
-  decision. Both now permit transitioning between approved/rejected
-  freely.
-- Rejecting a previously-approved branch now also revokes what
-  `approve()` had granted: removes the `user_branches` row, reassigns
+  decision. Reject can still correct a mistaken approval (refined same
+  day by (20) — re-approving a rejected row was removed).
+- Rejecting a previously-approved branch also revokes what `approve()`
+  had granted: removes the `user_branches` row, reassigns
   `primaryBranchId` to another remaining branch (or clears it), and
   demotes the role back to `general` only if the user has no branches
   left at all.

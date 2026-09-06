@@ -154,11 +154,16 @@ export class StudentApplicationsService {
     return result;
   }
 
-  /** Admin can (re-)decide a branch at any time, including flipping an earlier decision
-   * (e.g. correcting a mistaken approve/reject) — not just while it's still 'pending'. */
+  /** Only callable from 'pending' — rejected is a final decision (the applicant's path back
+   * in is to submit a *new* application, not to have this one flipped), and re-approving an
+   * already-approved row is a meaningless no-op. Contrast with reject(), which *can* correct
+   * a mistaken approve(). */
   async approve(branchRowId: string, actor: AuthUser): Promise<StudentApplicationRow> {
     const row = await this.getBranchRowOrThrow(branchRowId, actor);
     if (row.status === 'approved') throw new BadRequestException('This branch is already approved.');
+    if (row.status === 'rejected') {
+      throw new BadRequestException('A rejected application cannot be re-approved — ask the applicant to submit a new application.');
+    }
 
     row.status = 'approved';
     row.reviewedBy = actor.id;
