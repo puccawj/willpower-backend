@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, Not, Repository } from 'typeorm';
 import type { AuthUser } from '../auth/jwt.strategy';
 import { BranchAccessService } from '../common/branch-access.service';
 import { Branch } from '../branches/entities/branch.entity';
@@ -184,9 +184,25 @@ export class StudentApplicationsService {
     const application = await this.getApplicationOrThrow(row.applicationId);
     // Flipping an already-approved branch back to rejected must undo what approve() granted —
     // otherwise the applicant keeps student access/role despite now being marked rejected.
-    if (wasApproved) await this.revokeBranchAccess(application.userId, row.branchId);
+    // But a user who re-applies to the same branch after an earlier rejection gets a *second*
+    // application row for it (submit() only blocks re-applying while a branch is currently
+    // granted, not after a past rejection) — so this branch can have more than one row across
+    // different applications. If another of those rows is still 'approved', this one being
+    // rejected isn't the thing granting access, so don't revoke it out from under that row.
+    if (wasApproved && !(await this.hasOtherApprovedRowForBranch(application.userId, row.branchId, row.id))) {
+      await this.revokeBranchAccess(application.userId, row.branchId);
+    }
 
     return this.toRow(row, application, await this.branchNameOf(row.branchId));
+  }
+
+  private async hasOtherApprovedRowForBranch(userId: string, branchId: string, excludeRowId: string): Promise<boolean> {
+    const userApplicationIds = (await this.applications.find({ where: { userId } })).map((a) => a.id);
+    if (!userApplicationIds.length) return false;
+    const count = await this.appBranches.count({
+      where: { applicationId: In(userApplicationIds), branchId, status: 'approved', id: Not(excludeRowId) },
+    });
+    return count > 0;
   }
 
   private async branchNameOf(branchId: string): Promise<string> {
