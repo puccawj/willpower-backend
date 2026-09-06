@@ -154,9 +154,11 @@ export class StudentApplicationsService {
     return result;
   }
 
+  /** Admin can (re-)decide a branch at any time, including flipping an earlier decision
+   * (e.g. correcting a mistaken approve/reject) — not just while it's still 'pending'. */
   async approve(branchRowId: string, actor: AuthUser): Promise<StudentApplicationRow> {
     const row = await this.getBranchRowOrThrow(branchRowId, actor);
-    if (row.status !== 'pending') throw new BadRequestException('This branch has already been reviewed.');
+    if (row.status === 'approved') throw new BadRequestException('This branch is already approved.');
 
     row.status = 'approved';
     row.reviewedBy = actor.id;
@@ -171,14 +173,19 @@ export class StudentApplicationsService {
 
   async reject(branchRowId: string, actor: AuthUser): Promise<StudentApplicationRow> {
     const row = await this.getBranchRowOrThrow(branchRowId, actor);
-    if (row.status !== 'pending') throw new BadRequestException('This branch has already been reviewed.');
+    if (row.status === 'rejected') throw new BadRequestException('This branch is already rejected.');
 
+    const wasApproved = row.status === 'approved';
     row.status = 'rejected';
     row.reviewedBy = actor.id;
     row.reviewedAt = new Date();
     await this.appBranches.save(row);
 
     const application = await this.getApplicationOrThrow(row.applicationId);
+    // Flipping an already-approved branch back to rejected must undo what approve() granted —
+    // otherwise the applicant keeps student access/role despite now being marked rejected.
+    if (wasApproved) await this.revokeBranchAccess(application.userId, row.branchId);
+
     return this.toRow(row, application, await this.branchNameOf(row.branchId));
   }
 
@@ -208,6 +215,30 @@ export class StudentApplicationsService {
       if (!hasAnyBranch) await this.users.update({ id: userId }, { primaryBranchId: branchId });
     }
     await this.users.update({ id: userId }, { role: 'student' });
+  }
+
+  /** Undoes grantBranchAccess for one branch: removes that user_branches row, reassigns
+   * primaryBranchId to another remaining branch (or clears it), and — only if the user has
+   * no branches left at all — demotes their role back to 'general'. Never touches a role
+   * other than 'student' (an admin/instructor/superadmin couldn't have gone through this
+   * flow, but this guard keeps the demotion scoped to exactly what approve() granted). */
+  private async revokeBranchAccess(userId: string, branchId: string): Promise<void> {
+    const existing = await this.userBranches.findOne({ where: { userId, branchId } });
+    if (existing) await this.userBranches.remove(existing);
+
+    const remaining = await this.userBranches.find({ where: { userId } });
+    const user = await this.users.findOne({ where: { id: userId } });
+    if (!user) return;
+
+    if (user.primaryBranchId === branchId) {
+      const nextPrimary = remaining[0] ?? null;
+      await this.users.update({ id: userId }, { primaryBranchId: nextPrimary ? nextPrimary.branchId : null });
+      if (nextPrimary) await this.userBranches.update({ id: nextPrimary.id }, { isPrimary: true });
+    }
+
+    if (!remaining.length && user.role === 'student') {
+      await this.users.update({ id: userId }, { role: 'general' });
+    }
   }
 
   private async getBranchRowOrThrow(id: string, actor: AuthUser): Promise<StudentApplicationBranch> {
