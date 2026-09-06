@@ -2,6 +2,21 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-09-06 (19) — Allow admin to flip a student application's approve/reject decision
+
+- `approve()`/`reject()` on `student-applications` previously threw once
+  a branch left `pending`, blocking any correction of a mistaken
+  decision. Both now permit transitioning between approved/rejected
+  freely.
+- Rejecting a previously-approved branch now also revokes what
+  `approve()` had granted: removes the `user_branches` row, reassigns
+  `primaryBranchId` to another remaining branch (or clears it), and
+  demotes the role back to `general` only if the user has no branches
+  left at all.
+- Verified the schema this relies on directly against production
+  (`student_application_branches`, `user_branches`, the
+  one-primary-per-user unique index) — matches what the code assumes.
+
 ## 2026-09-02 (18) — Retroactively re-check existing enrollments for early completion
 
 - (17) only marked a student `completed` as soon as attendance crossed the
