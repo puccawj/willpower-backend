@@ -136,6 +136,18 @@ export class EnrollmentService {
       }
     }
 
+    // A student may only self-enroll in offerings run by a branch they're actually registered
+    // at — otherwise a student approved for one branch could enroll in every other branch's
+    // courses too. Admin-driven enrollment skips this: staff already only see/act on their own
+    // branch's offerings (getOfferingOrThrow's assertCanAccess above), and a superadmin
+    // deliberately cross-enrolling someone is a legitimate exception, not a bug.
+    if (!actor) {
+      const studentBranchIds = await this.branchAccess.branchIdsOf(dto.userId);
+      if (!studentBranchIds.has(offering.branchId)) {
+        throw new BadRequestException("You're not registered at this offering's branch, so you can't enroll in it.");
+      }
+    }
+
     // Prerequisite courses are enforced for every enrollment path — self-service and
     // admin-driven alike. An admin/instructor can explicitly override with dto.force
     // (surfaced as a checkbox in the admin UI), which self-service callers never set.

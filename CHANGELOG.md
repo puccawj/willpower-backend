@@ -2,6 +2,30 @@
 
 Product-impacting changes to the API. Newest first.
 
+## 2026-09-07 (21) — Self-enrollment must be scoped to the student's own registered branch(es)
+
+- Reported: a student previously approved at multiple branches, later reduced by
+  an admin down to just one (United States), could still self-enroll in course
+  offerings run by branches they were no longer registered at — confirmed live
+  on the real account. `EnrollmentService.enroll()` never checked the student's
+  own branch membership at all; the only branch check
+  (`getOfferingOrThrow`'s `assertCanAccess`) only ever runs for an admin/
+  instructor `actor`, which self-service calls (`MeService.enrollSelf()`) never
+  pass.
+- Added a check to the self-service path (`!actor`): the student's
+  `user_branches` rows (via the existing `BranchAccessService.branchIdsOf()`,
+  previously only used to scope admin/instructor access) must include the
+  offering's branch, or the enroll is rejected with a clear message. Left the
+  admin-driven path untouched — staff already only see/act on their own
+  branch's offerings, and a superadmin deliberately cross-enrolling someone is
+  a legitimate override, not a bug.
+- Verified against the local API/DB logged in as the US-only demo student
+  (`member.demo@willpower.org`): self-enrolling into an open Australia offering
+  is now rejected with `400 "You're not registered at this offering's branch,
+  so you can't enroll in it."`; an admin (`superadmin@willpower.org`) directly
+  enrolling that same student into that same offering still succeeds, confirming
+  the admin override path is unaffected.
+
 ## 2026-09-06 (20) — reject() must not revoke access still justified by a sibling row
 
 - `submit()` lets a user re-apply to a branch after an earlier rejection
